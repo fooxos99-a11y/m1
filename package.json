@@ -1,0 +1,24 @@
+{
+  "name": "momars-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/dev-all.ps1",
+    "dev:frontend": "npm --prefix frontend run serve",
+    "build": "npm run build:frontend",
+    "build:frontend": "npm --prefix frontend run build",
+    "lint": "npm run lint:frontend",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "report:health": "powershell -ExecutionPolicy Bypass -File scripts/project-health-report.ps1",
+    "mysql:install-service": "powershell -ExecutionPolicy Bypass -File scripts/install-mysql-service.ps1",
+    "mysql:start": "powershell -ExecutionPolicy Bypass -File scripts/start-mysql.ps1",
+    "serve:backend:8001": "powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1",
+    "serve:backend": "node scripts/run-php.mjs backend/artisan serve --host=127.0.0.1 --port=8000",
+    "migrate:backend": "node scripts/run-php.mjs backend/artisan migrate --force",
+    "test": "node scripts/run-php.mjs backend/artisan test"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
