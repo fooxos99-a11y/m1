@@ -1,4 +1,4 @@
-﻿const DEFAULT_PRACTITIONER_PAGE_CONTENT = {
+const DEFAULT_PRACTITIONER_PAGE_CONTENT = {
   brandTitle: 'برنامج رخصة ممارس',
   heroTitle: 'برنامج رخصة ممارس',
   heroText: 'برنامج تأهيلي يُعنى بإعداد معلمي ومعلمات القرآن عبر أربع مجالات رئيسة (الشرعي، التعليمي، التربوي، المهاري)، بهدف تأهيلهم لقيادة الحلقة القرآنية بكفاءة وفاعلية.',
@@ -33,7 +33,7 @@
     assessments: 'اختبار قبلي وبعدي',
     courses: 'دورة',
     tasks: 'المهام الأدائية',
-    completed30: 'الطلاب الذين أتموا 30 جزءًا',
+    completed30: 'عدد خريجي هذه الدفعة معلم ومعلمة',
   },
   competenciesTitle: 'مجالات وكفايات البرنامج',
   domains: [
