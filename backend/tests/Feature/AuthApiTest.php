@@ -60,4 +60,14 @@ class AuthApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['login_code']);
     }
+
+    public function test_subdirectory_api_guest_receives_json_unauthenticated_response(): void
+    {
+        $this->withServerVariables([
+            'REQUEST_URI' => '/momars/api/dashboard/snapshot',
+        ])
+            ->get('/api/dashboard/snapshot')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
 }
