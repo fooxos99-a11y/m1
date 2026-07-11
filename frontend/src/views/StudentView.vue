@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="student-page dashboard-page-shell">
     <aside
       class="dashboard-sidebar"
@@ -9,7 +9,7 @@
         class="dashboard-sidebar__brand"
       >
         <img
-          src="/اللوقو-شفاف.png"
+          :src="$publicAsset('اللوقو-شفاف.png')"
           alt="شعار البرنامج"
           class="dashboard-sidebar__logo"
         >
@@ -24,7 +24,7 @@
           :key="item.id"
           class="dashboard-nav__entry"
         >
-          <button
+          <AppRawButton
             type="button"
             class="dashboard-nav__item"
             :class="{ 'dashboard-nav__item--active': activeSection === item.id }"
@@ -35,7 +35,7 @@
               <span class="dashboard-nav__label">{{ item.label }}</span>
             </span>
             <span class="dashboard-nav__dot" />
-          </button>
+          </AppRawButton>
         </div>
       </nav>
     </aside>
@@ -232,7 +232,7 @@
                   <div class="results-list">
                     <article class="results-entry">
                       <div class="results-entry__actions">
-                        <button
+                        <AppRawButton
                           type="button"
                           class="results-entry__preview"
                           :disabled="!preCourseSubmission"
@@ -241,7 +241,7 @@
                           <v-icon small>
                             {{ expandedSection === 'course-pre' ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                           </v-icon>
-                        </button>
+                        </AppRawButton>
                         <span
                           class="results-entry__score-pill"
                           :class="{ 'results-entry__score-pill--empty': !preCourseSubmission }"
@@ -312,7 +312,7 @@
                   <div class="results-list">
                     <article class="results-entry">
                       <div class="results-entry__actions">
-                        <button
+                        <AppRawButton
                           type="button"
                           class="results-entry__preview"
                           :disabled="!postCourseSubmission"
@@ -321,7 +321,7 @@
                           <v-icon small>
                             {{ expandedSection === 'course-post' ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                           </v-icon>
-                        </button>
+                        </AppRawButton>
                         <span
                           class="results-entry__score-pill"
                           :class="{ 'results-entry__score-pill--empty': !postCourseSubmission }"
@@ -427,7 +427,7 @@
               >
                 <article class="results-entry">
                   <div class="results-entry__actions">
-                    <button
+                    <AppRawButton
                       type="button"
                       class="results-entry__preview"
                       :disabled="!selectedTaskSubmission"
@@ -436,7 +436,7 @@
                       <v-icon small>
                         {{ expandedSection === 'task' ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                       </v-icon>
-                    </button>
+                    </AppRawButton>
                     <span
                       class="results-entry__score-pill"
                       :class="{ 'results-entry__score-pill--empty': !selectedTaskSubmission }"
@@ -534,7 +534,7 @@
               >
                 <article class="results-entry">
                   <div class="results-entry__actions">
-                    <button
+                    <AppRawButton
                       type="button"
                       class="results-entry__preview"
                       :disabled="!finalExamSubmission"
@@ -543,7 +543,7 @@
                       <v-icon small>
                         {{ expandedSection === 'final' ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
                       </v-icon>
-                    </button>
+                    </AppRawButton>
                     <span
                       class="results-entry__score-pill"
                       :class="{ 'results-entry__score-pill--empty': !finalExamSubmission }"
@@ -620,6 +620,7 @@ import AppIconButton from '../components/AppIconButton.vue';
 import AppSelect from '../components/AppSelect.vue';
 import RichTextDocumentView from '../components/RichTextDocumentView.vue';
 import TrainingMaterialsList from '../components/TrainingMaterialsList.vue';
+import { AppRawButton } from '../components/ui';
 import { fetchStudentAssignedReciter } from '../services/api';
 
 const normalizeAnswer = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -628,6 +629,7 @@ export default {
   name: 'StudentView',
   components: {
     AppIconButton,
+    AppRawButton,
     AppSelect,
     RichTextDocumentView,
     TrainingMaterialsList,

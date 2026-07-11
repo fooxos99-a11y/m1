@@ -21,14 +21,13 @@
               {{ saveStatusText }}
             </div>
           </div>
-          <v-btn
+          <AppButton
             v-if="!embedded"
-            text
-            color="primary"
+            variant="plain"
             :to="{ name: 'dashboard' }"
           >
             رجوع للوحة
-          </v-btn>
+          </AppButton>
         </div>
 
         <div class="prep-filters">
@@ -71,7 +70,7 @@
                   v-on="on"
                 >
                   <span class="results-course-option__label">{{ item.label }}</span>
-                  <button
+                  <AppRawButton
                     type="button"
                     class="results-course-option__delete"
                     :disabled="deletingCourseId === item.value"
@@ -83,13 +82,13 @@
                       class="fa-solid fa-trash-can"
                       aria-hidden="true"
                     />
-                  </button>
+                  </AppRawButton>
                 </div>
               </template>
             </AppSelect>
           </div>
 
-          <button
+          <AppRawButton
             type="button"
             class="attendance-toggle prep-filters__toggle"
             :class="{
@@ -100,7 +99,7 @@
             @click="toggleVisibleAttendance"
           >
             <span class="attendance-toggle__dot" />
-          </button>
+          </AppRawButton>
         </div>
 
         <div class="prep-table-wrap">
@@ -132,7 +131,7 @@
                   {{ student.loginId || '---' }}
                 </td>
                 <td class="prep-table__status">
-                  <button
+                  <AppRawButton
                     type="button"
                     class="attendance-toggle"
                     :class="{ 'attendance-toggle--active': attendanceChecked.includes(student.id) }"
@@ -140,7 +139,7 @@
                     @click="toggleAttendance(student.id)"
                   >
                     <span class="attendance-toggle__dot" />
-                  </button>
+                  </AppRawButton>
                 </td>
               </tr>
             </tbody>
@@ -178,6 +177,23 @@
           </div>
 
           <div
+            v-if="!managedBranchId"
+            class="results-filter-field"
+          >
+            <label class="results-filter-field__label">الفرع</label>
+            <AppSelect
+              v-model="resultsBranchId"
+              :items="branchOptions"
+              item-text="label"
+              item-value="value"
+              dense
+              outlined
+              hide-details
+              class="results-select"
+            />
+          </div>
+
+          <div
             v-if="isCourseResultsSection"
             class="results-filter-field"
           >
@@ -197,27 +213,10 @@
           </div>
 
           <div
-            v-if="!managedBranchId"
+            v-if="showStudentFilter"
             class="results-filter-field"
           >
-            <label class="results-filter-field__label">الفرع</label>
-            <AppSelect
-              v-model="resultsBranchId"
-              :items="branchOptions"
-              item-text="label"
-              item-value="value"
-              dense
-              outlined
-              hide-details
-              class="results-select"
-            />
-          </div>
-
-          <div
-            v-if="isAttendanceResultsType"
-            class="results-filter-field"
-          >
-            <label class="results-filter-field__label">المعلمون</label>
+            <label class="results-filter-field__label">{{ studentFilterLabel }}</label>
             <AppSelect
               v-model="studentFilter"
               :items="studentFilterOptions"
@@ -279,7 +278,18 @@
               </template>
 
               <template v-else>
-                <button
+                <AppRawButton
+                  v-if="row.attachment"
+                  type="button"
+                  class="results-entry__attachment"
+                  :title="row.attachment.fileName"
+                  @click="openAttachmentPreview(row.attachment)"
+                >
+                  <v-icon small>
+                    mdi-paperclip
+                  </v-icon>
+                </AppRawButton>
+                <AppRawButton
                   type="button"
                   class="results-entry__preview"
                   :disabled="!row.submission"
@@ -288,7 +298,7 @@
                   <v-icon small>
                     mdi-eye-outline
                   </v-icon>
-                </button>
+                </AppRawButton>
                 <span
                   class="results-entry__score-pill"
                   :class="{ 'results-entry__score-pill--empty': !row.submission }"
@@ -304,6 +314,12 @@
               </div>
               <div class="results-entry__login">
                 {{ row.loginId || '---' }}
+              </div>
+              <div
+                v-if="row.attachment"
+                class="results-entry__attachment-name"
+              >
+                {{ row.attachment.fileName }}
               </div>
             </div>
           </article>
@@ -326,7 +342,7 @@
               </div>
             </div>
             <div class="results-detail-dialog__actions">
-              <button
+              <AppRawButton
                 v-if="isTaskResultsSection && selectedResultRow && selectedResultRow.submission"
                 type="button"
                 class="results-detail-dialog__download-btn"
@@ -337,8 +353,8 @@
                   mdi-file-pdf-box
                 </v-icon>
                 تحميل PDF
-              </button>
-              <button
+              </AppRawButton>
+              <AppRawButton
                 type="button"
                 class="results-detail-dialog__close"
                 @click="closeResultDialog"
@@ -346,7 +362,7 @@
                 <v-icon small>
                   mdi-close
                 </v-icon>
-              </button>
+              </AppRawButton>
             </div>
           </div>
 
@@ -368,14 +384,14 @@
                 v-if="selectedResultsTotalPoints"
                 class="results-score-editor__total"
               >/ {{ selectedResultsTotalPoints }}</span>
-              <button
+              <AppRawButton
                 type="button"
                 class="results-score-editor__save-btn"
                 :disabled="isSavingScore"
                 @click="handleSaveScore"
               >
                 {{ isSavingScore ? 'جارٍ الحفظ...' : 'حفظ الدرجة' }}
-              </button>
+              </AppRawButton>
             </div>
           </div>
 
@@ -440,6 +456,18 @@
               >
                 إجابة المعلم: {{ detail.studentAnswer }}
               </div>
+
+              <AppRawButton
+                v-if="detail.attachment"
+                type="button"
+                class="results-answer-card__attachment"
+                @click="openAttachmentPreview(detail.attachment)"
+              >
+                <v-icon small>
+                  mdi-paperclip
+                </v-icon>
+                {{ detail.attachment.fileName }}
+              </AppRawButton>
             </article>
           </div>
         </div>
@@ -459,20 +487,19 @@
             ؟
           </p>
           <div class="results-delete-dialog__actions">
-            <v-btn
-              text
-              color="primary"
+            <AppButton
+              variant="secondary"
               @click="closeCourseDeleteDialog"
             >
               إلغاء
-            </v-btn>
-            <v-btn
-              color="error"
+            </AppButton>
+            <AppButton
+              variant="danger"
               :loading="isDeletingCourse"
               @click="confirmCourseDelete"
             >
               {{ isDeletingCourse ? 'جارٍ الحذف...' : 'حذف' }}
-            </v-btn>
+            </AppButton>
           </div>
         </div>
       </AppDialog>
@@ -483,8 +510,11 @@
 <script>
 import { mapActions, mapState } from 'vuex';
 import RichTextDocumentView from '../components/RichTextDocumentView.vue';
-import { AppDialog, AppSelect } from '../components/ui';
+import {
+  AppButton, AppDialog, AppRawButton, AppSelect,
+} from '../components/ui';
 import { setAssessmentManualScore, setFinalExamManualScore } from '../services/api';
+import { sanitizeRichTextHtml } from '../utils/documentContent';
 
 const RESULTS_TASKS_VALUE = '__tasks__';
 const RESULTS_FINAL_EXAM_VALUE = '__final_exam__';
@@ -494,7 +524,9 @@ const normalizeAnswer = (value) => String(value || '').trim().replace(/\s+/g, ' 
 export default {
   name: 'AdminResultsView',
   components: {
+    AppButton,
     AppDialog,
+    AppRawButton,
     RichTextDocumentView,
     AppSelect,
   },
@@ -519,7 +551,7 @@ export default {
       resultsCourseId: '',
       resultsBranchId: 'male',
       resultsType: '',
-      studentFilter: 'all',
+      studentFilter: '',
       resultDialogOpen: false,
       selectedResultLoginId: '',
       scoreEditValue: null,
@@ -550,6 +582,9 @@ export default {
     },
     canManageCourses() {
       return this.currentUser?.role === 'admin';
+    },
+    isDeletingCourse() {
+      return Boolean(this.deletingCourseId);
     },
     effectiveAttendanceBranchId() {
       return this.managedBranchId || this.attendanceBranchId;
@@ -604,8 +639,13 @@ export default {
         value: course.id,
         course,
       }));
+      const taskOptions = this.taskEligibleCourses.map((course) => ({
+        label: course.title || 'مهمة أدائية',
+        value: `task:${course.id}`,
+        course,
+      }));
       const specialOptions = [
-        ...(this.taskEligibleCourses.length ? [{ label: 'المهام الأدائية', value: RESULTS_TASKS_VALUE }] : []),
+        ...taskOptions,
         { label: 'الاختبار النهائي', value: RESULTS_FINAL_EXAM_VALUE },
       ];
 
@@ -619,11 +659,16 @@ export default {
         return null;
       }
 
+      const selectedTaskId = this.resultsCourseId.startsWith('task:') ? this.resultsCourseId.slice(5) : '';
+      if (selectedTaskId) {
+        return this.taskEligibleCourses.find((course) => course.id === selectedTaskId) || null;
+      }
+
       const courseId = this.selectedResultRow?.submission?.courseId || '';
       return this.taskEligibleCourses.find((course) => course.id === courseId) || null;
     },
     isTaskResultsSection() {
-      return this.resultsCourseId === RESULTS_TASKS_VALUE;
+      return this.resultsCourseId === RESULTS_TASKS_VALUE || this.resultsCourseId.startsWith('task:');
     },
     isFinalExamResultsSection() {
       return this.resultsCourseId === RESULTS_FINAL_EXAM_VALUE;
@@ -638,7 +683,7 @@ export default {
     },
     selectedResultsSectionLabel() {
       if (this.isTaskResultsSection) {
-        return 'المهام الأدائية';
+        return this.selectedTaskResultCourse?.title || 'المهام الأدائية';
       }
 
       if (this.isFinalExamResultsSection) {
@@ -689,6 +734,12 @@ export default {
     isAttendanceResultsType() {
       return this.isCourseResultsSection && this.resultsType === 'attendance';
     },
+    showStudentFilter() {
+      return this.isAttendanceResultsType;
+    },
+    studentFilterLabel() {
+      return 'حالة المعلمين';
+    },
     attendanceStudents() {
       return this.students.filter((student) => student.branchId === this.effectiveAttendanceBranchId);
     },
@@ -716,7 +767,7 @@ export default {
     },
     activeResultsTypeLabel() {
       if (this.isTaskResultsSection) {
-        return 'المهام الأدائية';
+        return this.selectedTaskResultCourse?.title || 'المهام الأدائية';
       }
 
       if (this.isFinalExamResultsSection) {
@@ -738,9 +789,10 @@ export default {
         ];
       }
 
-      return [
-        { label: 'جميع المعلمين', value: 'all' },
-      ];
+      return this.resultsBranchStudents.map((student) => ({
+        label: student.name,
+        value: student.loginId,
+      }));
     },
     resultsBranchStudents() {
       return this.students
@@ -779,13 +831,16 @@ export default {
           name: student.name,
           loginId: student.loginId,
           submission,
+          attachment: this.resolveSubmissionAttachment(submission),
           score,
           scoreLabel: this.formatRowScore(score, submission),
         };
       });
     },
     taskRows() {
-      return this.taskEligibleCourses.flatMap((course) => this.resultsBranchStudents.map((student) => {
+      const taskCourses = this.selectedTaskResultCourse ? [this.selectedTaskResultCourse] : this.taskEligibleCourses;
+
+      return taskCourses.flatMap((course) => this.resultsBranchStudents.map((student) => {
         const submission = this.submissions.find((item) => (
           item.courseId === course.id
           && item.assessmentType === 'tasks'
@@ -799,6 +854,7 @@ export default {
           loginId: student.loginId,
           sectionLabel: course.title,
           submission,
+          attachment: this.resolveSubmissionAttachment(submission),
           score,
           scoreLabel: submission ? `${course.title}: ${this.formatRowScore(score, submission)}` : `${course.title}: غير مرسل`,
         };
@@ -817,6 +873,7 @@ export default {
           name: student.name,
           loginId: student.loginId,
           submission,
+          attachment: this.resolveSubmissionAttachment(submission),
           score,
           scoreLabel: this.formatRowScore(score, submission),
         };
@@ -830,7 +887,7 @@ export default {
           : (this.isAttendanceResultsType ? this.attendanceRows : this.assessmentRows));
 
       return source.filter((row) => {
-        if (this.studentFilter === 'all') {
+        if (!this.studentFilter || this.studentFilter === 'all') {
           return true;
         }
 
@@ -850,7 +907,7 @@ export default {
           return true;
         }
 
-        return true;
+        return row.loginId === this.studentFilter;
       });
     },
     selectedResultRow() {
@@ -887,6 +944,7 @@ export default {
             hideCorrectAnswer: this.isTaskResultsSection && taskMode === 'document',
             studentAnswer,
             studentAnswerHtml,
+            attachment: this.resolveAnswerAttachment(answer),
             isCorrect,
             statusText: isCorrect === null ? '' : (isCorrect ? 'صحيحة' : 'غير صحيحة'),
           };
@@ -907,6 +965,7 @@ export default {
           && String(answer?.value || '').trim()
           ? String(answer.value)
           : '',
+        attachment: this.resolveAnswerAttachment(answer),
         isCorrect: null,
         statusText: '',
       }));
@@ -931,10 +990,18 @@ export default {
     },
     resultsType() {
       if (!this.studentFilterOptions.some((option) => option.value === this.studentFilter)) {
-        this.studentFilter = 'all';
+        this.studentFilter = this.studentFilterOptions[0]?.value || '';
       }
 
       this.closeResultDialog();
+    },
+    studentFilterOptions: {
+      immediate: true,
+      handler(options) {
+        if (!options.some((option) => option.value === this.studentFilter)) {
+          this.studentFilter = options[0]?.value || '';
+        }
+      },
     },
     selectedAttendanceRecords: {
       immediate: true,
@@ -947,9 +1014,14 @@ export default {
       },
     },
     resultsCourseId() {
+      if (!this.studentFilterOptions.some((option) => option.value === this.studentFilter)) {
+        this.studentFilter = this.studentFilterOptions[0]?.value || '';
+      }
+
       this.closeResultDialog();
     },
     resultsBranchId() {
+      this.studentFilter = this.studentFilterOptions[0]?.value || '';
       this.closeResultDialog();
     },
     resultDialogOpen(opened) {
@@ -1087,6 +1159,10 @@ export default {
         return Number(submission.manualScore);
       }
 
+      if (submission.assessmentType === 'tasks') {
+        return null;
+      }
+
       const questions = this.resolveSubmissionQuestions(submission);
 
       if (!questions.length) {
@@ -1135,6 +1211,10 @@ export default {
         return 'غير مرسل';
       }
 
+      if (submission.assessmentType === 'tasks' && (submission.manualScore === null || submission.manualScore === undefined)) {
+        return 'قيد المراجعة';
+      }
+
       if (!this.selectedResultsTotalPoints) {
         return `${(submission.answers || []).length} إجابة`;
       }
@@ -1155,6 +1235,82 @@ export default {
       }
 
       return 'لا توجد إجابة';
+    },
+    resolveAnswerAttachment(answer) {
+      if (!answer?.fileName || !answer?.fileDataUrl) {
+        return null;
+      }
+
+      return {
+        fileName: answer.fileName,
+        fileType: answer.fileType || '',
+        fileDataUrl: answer.fileDataUrl,
+      };
+    },
+    resolveSubmissionAttachment(submission) {
+      return (submission?.answers || [])
+        .map((answer) => this.resolveAnswerAttachment(answer))
+        .find(Boolean) || null;
+    },
+    openAttachmentPreview(attachment) {
+      if (!attachment?.fileDataUrl) {
+        return;
+      }
+
+      const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
+      if (!previewWindow) {
+        return;
+      }
+
+      previewWindow.document.write(`
+        <!doctype html>
+        <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="utf-8">
+            <title>${this.escapeHtml(attachment.fileName || 'المرفق')}</title>
+            <style>
+              body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f8fafc; font-family: sans-serif; }
+              iframe, img, video { width: 100%; height: 100vh; border: 0; object-fit: contain; background: #fff; }
+              a { color: #006c67; font-weight: 800; font-size: 18px; }
+            </style>
+          </head>
+          <body>
+            ${this.renderAttachmentPreview(attachment)}
+          </body>
+        </html>
+      `);
+      previewWindow.document.close();
+    },
+    escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    },
+    escapeAttribute(value) {
+      return this.escapeHtml(value).replace(/`/g, '&#96;');
+    },
+    renderAttachmentPreview(attachment) {
+      const source = this.escapeAttribute(attachment.fileDataUrl);
+      const fileType = attachment.fileType || '';
+      const fileName = this.escapeAttribute(attachment.fileName || 'المرفق');
+      const fileLabel = this.escapeHtml(attachment.fileName || 'المرفق');
+
+      if (fileType.startsWith('image/')) {
+        return `<img src="${source}" alt="${fileName}">`;
+      }
+
+      if (fileType === 'application/pdf') {
+        return `<iframe src="${source}" title="${fileName}"></iframe>`;
+      }
+
+      if (fileType.startsWith('video/')) {
+        return `<video src="${source}" controls></video>`;
+      }
+
+      return `<a href="${source}" download="${fileName}">تحميل / فتح ${fileLabel}</a>`;
     },
     resolveCorrectAnswer(question) {
       if (!question) {
@@ -1192,23 +1348,23 @@ export default {
         }
         await this.loadDashboardSnapshot();
       } catch (err) {
-        console.error('فشل حفظ الدرجة', err);
+        this.$toast.error(err?.response?.data?.message || 'تعذر حفظ الدرجة');
       } finally {
         this.isSavingScore = false;
       }
     },
     downloadResultAsPdf() {
-      const courseName = this.selectedTaskResultCourse?.title || this.selectedResultsSectionLabel || 'النتيجة';
-      const studentName = this.selectedResultRow?.name || 'المعلم';
+      const courseName = this.escapeHtml(this.selectedTaskResultCourse?.title || this.selectedResultsSectionLabel || 'النتيجة');
+      const studentName = this.escapeHtml(this.selectedResultRow?.name || 'المعلم');
       const docTitle = `${courseName}:${studentName}`;
 
       const cardsHtml = this.resultDetailCards.map((card, i) => {
         const answerContent = card.studentAnswerHtml
-          ? `<div class="student-doc-answer ql-editor">${card.studentAnswerHtml}</div>`
-          : `<p class="student-text-answer">${card.studentAnswer || 'لا توجد إجابة'}</p>`;
+          ? `<div class="student-doc-answer ql-editor">${sanitizeRichTextHtml(card.studentAnswerHtml)}</div>`
+          : `<p class="student-text-answer">${this.escapeHtml(card.studentAnswer || 'لا توجد إجابة')}</p>`;
         return `
           <div class="q-card">
-            <div class="q-prompt">${i + 1}. ${card.prompt} <span class="q-pts">(${card.points} درجة)</span></div>
+            <div class="q-prompt">${i + 1}. ${this.escapeHtml(card.prompt)} <span class="q-pts">(${this.escapeHtml(card.points)} درجة)</span></div>
             <div class="q-answer-label">إجابة المعلم:</div>
             ${answerContent}
           </div>`;
@@ -1241,8 +1397,7 @@ export default {
 
       const win = window.open('', '_blank', 'width=900,height=700');
       if (!win) {
-        // eslint-disable-next-line no-alert
-        alert('يرجى السماح بفتح النوافذ المنبثقة لتحميل الملف');
+        this.$toast.error('يرجى السماح بفتح النوافذ المنبثقة لتحميل الملف');
         return;
       }
       win.document.write(html);
@@ -1603,12 +1758,21 @@ export default {
   font-size: 0.95rem;
 }
 
+.results-entry__attachment-name {
+  margin-top: 4px;
+  color: #006c67;
+  font-size: 0.78rem;
+  font-weight: 800;
+  word-break: break-word;
+}
+
 .results-entry__actions {
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
+.results-entry__attachment,
 .results-entry__preview {
   display: inline-flex;
   align-items: center;
@@ -1619,6 +1783,13 @@ export default {
   border-radius: 14px;
   background: #fff;
   color: #0d4f69;
+}
+
+.results-entry__attachment {
+  border-color: rgba(0, 108, 103, 0.22);
+  border-radius: 50%;
+  background: rgba(0, 108, 103, 0.08);
+  color: #006c67;
 }
 
 .results-entry__preview:disabled {
@@ -1759,6 +1930,19 @@ export default {
 .results-answer-card__line--student {
   color: #7b8f9d;
   font-weight: 600;
+}
+
+.results-answer-card__attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  border: 1px solid rgba(0, 108, 103, 0.18);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(0, 108, 103, 0.08);
+  color: #006c67;
+  font-weight: 800;
 }
 
 .results-answer-card__document {

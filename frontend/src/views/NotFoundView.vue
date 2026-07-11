@@ -14,19 +14,24 @@
       <p class="text-body-2 text--secondary mb-6">
         المسار المطلوب غير موجود داخل الهيكل الجديد.
       </p>
-      <v-btn
-        color="primary"
+      <AppButton
+        variant="primary"
         :to="{ name: 'home' }"
       >
         العودة للرئيسية
-      </v-btn>
+      </AppButton>
     </v-card>
   </v-container>
 </template>
 
 <script>
+import { AppButton } from '../components/ui';
+
 export default {
   name: 'NotFoundView',
+  components: {
+    AppButton,
+  },
 };
 </script>
 

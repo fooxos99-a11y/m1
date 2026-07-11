@@ -3,7 +3,7 @@
     class="admin-training-materials"
     :class="{ 'admin-training-materials--embedded': embedded }"
   >
-    <section class="admin-training-materials__card">
+    <section class="admin-training-materials__controls">
       <div class="admin-training-materials__toolbar">
         <div class="prep-field admin-training-materials__filter-field">
           <label class="prep-field__label">المادة التدريبية</label>
@@ -21,52 +21,28 @@
             class="prep-select admin-training-materials__select"
           />
         </div>
-
-        <div
-          v-if="selectedMaterial"
-          class="admin-training-materials__toolbar-actions"
-        >
-          <button
-            type="button"
-            class="admin-training-materials__toolbar-icon-button admin-training-materials__toolbar-icon-button--edit"
-            aria-label="تعديل المادة"
-            @click="openEditDialog()"
-          >
-            <v-icon small>
-              mdi-pencil-outline
-            </v-icon>
-          </button>
-          <button
-            type="button"
-            class="admin-training-materials__toolbar-icon-button admin-training-materials__toolbar-icon-button--delete"
-            aria-label="حذف المادة"
-            :disabled="deletingId === selectedMaterial.id"
-            @click="removeMaterial(selectedMaterial.id)"
-          >
-            <i
-              class="fa-solid fa-trash-can app-action-icon app-action-icon--delete"
-              aria-hidden="true"
-            />
-          </button>
-        </div>
       </div>
 
       <div
-        v-if="!selectedMaterial"
+        v-if="!hasMaterials"
         class="admin-training-materials__empty"
       >
-        {{ hasMaterials ? 'اختر مادة من القائمة أو اختر إضافة مادة لإنشاء مادة جديدة.' : 'لا توجد مواد تدريبية بعد. اختر إضافة مادة من القائمة لإنشاء أول مادة.' }}
-      </div>
-
-      <div v-else>
-        <TrainingMaterialsList
-          :materials="[selectedMaterial]"
-          preview-in-dialog
-          empty-title="لا توجد بيانات لعرضها."
-          empty-description=""
-        />
+        لا توجد مواد تدريبية بعد. اختر إضافة مادة من القائمة لإنشاء أول مادة.
       </div>
     </section>
+
+    <TrainingMaterialsList
+      v-if="hasMaterials"
+      :materials="displayedMaterials"
+      preview-in-dialog
+      show-edit
+      show-delete
+      :deleting-id="deletingId"
+      empty-title="لا توجد بيانات لعرضها."
+      empty-description=""
+      @edit="openEditDialog"
+      @delete="removeMaterial"
+    />
 
     <AppDialog
       v-model="dialogOpen"
@@ -120,13 +96,17 @@
           <div class="admin-training-materials__field">
             <div class="admin-training-materials__attachments-header">
               <span class="admin-training-materials__label">المرفقات</span>
-              <button
+              <AppRawButton
                 type="button"
                 class="admin-training-materials__add-attachment"
+                aria-label="إضافة مرفق"
                 @click="addAttachmentRow"
               >
-                +
-              </button>
+                <v-icon size="19">
+                  mdi-paperclip
+                </v-icon>
+                <span>إضافة مرفق</span>
+              </AppRawButton>
             </div>
 
             <div class="admin-training-materials__attachments">
@@ -150,7 +130,7 @@
                     >
                       <input
                         type="file"
-                        accept="*/*"
+                        accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.mp4,.webm,.mov,.mp3,.wav,application/pdf,application/zip,application/x-zip-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/jpeg,image/png,image/gif,image/webp,text/plain,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/wav"
                         class="admin-training-materials__hidden-file-input"
                         @change="handleAttachmentFileChange(index, $event)"
                       >
@@ -159,7 +139,7 @@
                       </v-icon>
                     </label>
 
-                    <button
+                    <AppRawButton
                       type="button"
                       class="admin-training-materials__remove-attachment"
                       aria-label="حذف المرفق"
@@ -169,7 +149,7 @@
                         class="fa-solid fa-trash-can app-action-icon app-action-icon--delete"
                         aria-hidden="true"
                       />
-                    </button>
+                    </AppRawButton>
                   </div>
                 </div>
 
@@ -218,11 +198,13 @@ import {
   AppDialogBody,
   AppDialogFooter,
   AppDialogHeader,
+  AppRawButton,
   AppSelect,
 } from '../components/ui';
 import TrainingMaterialsList from '../components/TrainingMaterialsList.vue';
 import { createTrainingMaterial, deleteTrainingMaterial, updateTrainingMaterial } from '../services/api';
 
+const ALL_MATERIALS_OPTION_VALUE = '__all_materials__';
 const ADD_MATERIAL_OPTION_VALUE = '__add_material__';
 
 let attachmentDraftCounter = 0;
@@ -261,6 +243,7 @@ export default {
     AppDialogBody,
     AppDialogFooter,
     AppDialogHeader,
+    AppRawButton,
     AppSelect,
     TrainingMaterialsList,
   },
@@ -275,7 +258,7 @@ export default {
       dialogOpen: false,
       dialogMode: 'create',
       editingMaterialId: '',
-      selectedMaterialId: '',
+      selectedMaterialId: ALL_MATERIALS_OPTION_VALUE,
       materialSelectResetKey: 0,
       submitting: false,
       deletingId: '',
@@ -298,6 +281,7 @@ export default {
     },
     materialOptions() {
       return [
+        { label: 'كل المواد', value: ALL_MATERIALS_OPTION_VALUE },
         ...this.trainingMaterials.map((material) => ({
           label: material.title,
           value: material.id,
@@ -307,7 +291,7 @@ export default {
     },
     materialSelectValue: {
       get() {
-        return this.selectedMaterialId || null;
+        return this.selectedMaterialId || ALL_MATERIALS_OPTION_VALUE;
       },
       set(value) {
         if (value === ADD_MATERIAL_OPTION_VALUE) {
@@ -321,11 +305,26 @@ export default {
           return;
         }
 
-        this.selectedMaterialId = value || '';
+        this.selectedMaterialId = value || ALL_MATERIALS_OPTION_VALUE;
       },
     },
     selectedMaterial() {
+      if (this.selectedMaterialId === ALL_MATERIALS_OPTION_VALUE) {
+        return null;
+      }
+
       return this.trainingMaterials.find((material) => material.id === this.selectedMaterialId) || null;
+    },
+    displayedMaterials() {
+      if (!this.hasMaterials) {
+        return [];
+      }
+
+      if (this.selectedMaterialId !== ALL_MATERIALS_OPTION_VALUE) {
+        return this.selectedMaterial ? [this.selectedMaterial] : [];
+      }
+
+      return this.trainingMaterials;
     },
     branchOptions() {
       return [
@@ -346,12 +345,18 @@ export default {
       immediate: true,
       handler(nextMaterials) {
         if (!nextMaterials.length) {
-          this.selectedMaterialId = '';
+          this.selectedMaterialId = ALL_MATERIALS_OPTION_VALUE;
           return;
         }
 
-        if (!nextMaterials.some((material) => material.id === this.selectedMaterialId)) {
-          this.selectedMaterialId = nextMaterials[0].id;
+        if (!this.selectedMaterialId || this.selectedMaterialId === ADD_MATERIAL_OPTION_VALUE) {
+          this.selectedMaterialId = ALL_MATERIALS_OPTION_VALUE;
+          return;
+        }
+
+        if (this.selectedMaterialId !== ALL_MATERIALS_OPTION_VALUE
+          && !nextMaterials.some((material) => material.id === this.selectedMaterialId)) {
+          this.selectedMaterialId = ALL_MATERIALS_OPTION_VALUE;
         }
       },
     },
@@ -400,7 +405,7 @@ export default {
       this.editingMaterialId = '';
       this.formError = '';
       if (this.selectedMaterialId === ADD_MATERIAL_OPTION_VALUE) {
-        this.selectedMaterialId = '';
+        this.selectedMaterialId = ALL_MATERIALS_OPTION_VALUE;
       }
       this.materialSelectResetKey += 1;
     },
@@ -513,14 +518,19 @@ export default {
         };
 
         const isEditMode = this.dialogMode === 'edit' && this.editingMaterialId;
+        const successMessage = isEditMode
+          ? 'تم تحديث المادة التدريبية'
+          : 'تمت إضافة المادة التدريبية';
         const result = isEditMode
           ? await updateTrainingMaterial(this.editingMaterialId, payload)
           : await createTrainingMaterial(payload);
 
         await this.loadDashboardSnapshot();
-        this.selectedMaterialId = result?.id || this.selectedMaterialId;
+        this.selectedMaterialId = isEditMode
+          ? (result?.id || this.selectedMaterialId)
+          : ALL_MATERIALS_OPTION_VALUE;
         this.closeDialog();
-        this.$toast.success(this.dialogMode === 'edit' ? 'تم تحديث المادة التدريبية' : 'تمت إضافة المادة التدريبية');
+        this.$toast.success(successMessage);
       } catch (error) {
         this.formError = this.resolveRequestError(error);
         this.$toast.error(this.formError);
@@ -555,16 +565,16 @@ export default {
   gap: 18px;
 }
 
-.admin-training-materials__card,
+.admin-training-materials__controls,
 .admin-training-materials__dialog {
   border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 28px;
+  border-radius: 22px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 250, 250, 0.96) 100%);
-  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
 }
 
-.admin-training-materials__card {
-  padding: 24px;
+.admin-training-materials__controls {
+  padding: 18px 20px;
 }
 
 .admin-training-materials__toolbar {
@@ -572,50 +582,14 @@ export default {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
 }
 
 .admin-training-materials__filter-field {
   width: min(420px, 100%);
 }
 
-.admin-training-materials__toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.admin-training-materials__toolbar-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border-radius: 999px;
-  border: 1px solid #d4e5ec;
-  background: #fff;
-  color: #527082;
-  cursor: pointer;
-}
-
-.admin-training-materials__toolbar-icon-button--edit:hover {
-  border-color: rgba(27, 111, 135, 0.38);
-  color: #1b6f87;
-}
-
-.admin-training-materials__toolbar-icon-button--delete:hover {
-  border-color: rgba(190, 69, 69, 0.32);
-  color: #b42323;
-  background: rgba(190, 69, 69, 0.07);
-}
-
-.admin-training-materials__toolbar-icon-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
 .admin-training-materials__empty {
+  margin-top: 16px;
   border: 1px dashed rgba(159, 191, 207, 0.9);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.86);
@@ -625,22 +599,9 @@ export default {
   line-height: 1.9;
 }
 
-.admin-training-materials__delete-material {
-  border: 0;
-  border-radius: 999px;
-  background: rgba(196, 64, 64, 0.12);
-  color: #a52828;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 10px 16px;
-}
-
-.admin-training-materials__delete-material:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
 .admin-training-materials__dialog {
+  border-radius: 28px;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
   overflow: hidden;
   max-height: 88vh;
   display: flex;
@@ -794,16 +755,22 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  gap: 8px;
+  min-height: 42px;
   margin-top: 4px;
+  padding: 0 14px;
   border: 1px solid rgba(143, 191, 211, 0.72);
-  border-radius: 999px;
-  background: #fff;
+  border-radius: 14px;
+  background: #f6fbfc;
   color: #107699;
   cursor: pointer;
-  font-size: 1.3rem;
+  font-size: 0.9rem;
   font-weight: 800;
+}
+
+.admin-training-materials__add-attachment:hover {
+  border-color: rgba(16, 118, 153, 0.32);
+  background: #ffffff;
 }
 
 .admin-training-materials__dialog-footer,
@@ -814,17 +781,17 @@ export default {
 }
 
 @media (max-width: 720px) {
-  .admin-training-materials__toolbar,
   .admin-training-materials__attachment-row {
     grid-template-columns: 1fr;
   }
 
   .admin-training-materials__toolbar {
+    flex-direction: column;
     align-items: stretch;
   }
 
-  .admin-training-materials__toolbar-actions {
-    justify-content: flex-end;
+  .admin-training-materials__filter-field {
+    width: 100%;
   }
 }
 </style>

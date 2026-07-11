@@ -7,7 +7,10 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
@@ -18,13 +21,25 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $rateLimitKey = Str::lower(trim((string) $credentials['login_code'])).'|'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+            return response()->json([
+                'message' => 'محاولات دخول كثيرة. حاول مرة أخرى بعد قليل.',
+            ], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
         $user = User::query()->where('login_code', $credentials['login_code'])->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password ?? '')) {
+            RateLimiter::hit($rateLimitKey, 60);
+
             throw ValidationException::withMessages([
                 'login_code' => ['بيانات الدخول غير صحيحة.'],
             ]);
         }
+
+        RateLimiter::clear($rateLimitKey);
 
         $token = $user->createToken('spa')->plainTextToken;
 

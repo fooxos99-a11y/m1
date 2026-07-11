@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ArchiveController extends Controller
@@ -347,8 +348,9 @@ class ArchiveController extends Controller
             'batch_type' => $validated['batch_type'] ?? 'all',
         ]);
         $archiveId = $archive->id;
+        $hasSubmissionScope = Schema::hasColumn('course_submissions', 'submission_uniqueness_scope');
 
-        DB::transaction(function () use ($archiveId) {
+        DB::transaction(function () use ($archiveId, $hasSubmissionScope) {
             $activeStudents = DB::table('students')
                 ->whereNull('archive_id')
                 ->select(['id', 'login_code'])
@@ -440,13 +442,19 @@ class ArchiveController extends Controller
             }
 
             foreach ($courseSubmissions as $submission) {
+                $payload = [
+                    'course_id' => $courseIdMap[$submission->course_id] ?? $submission->course_id,
+                    'login_code' => $archivedLoginCodes[$submission->login_code] ?? $submission->login_code,
+                    'archive_id' => $archiveId,
+                ];
+
+                if ($hasSubmissionScope) {
+                    $payload['submission_uniqueness_scope'] = $archiveId;
+                }
+
                 DB::table('course_submissions')
                     ->where('id', $submission->id)
-                    ->update([
-                        'course_id' => $courseIdMap[$submission->course_id] ?? $submission->course_id,
-                        'login_code' => $archivedLoginCodes[$submission->login_code] ?? $submission->login_code,
-                        'archive_id' => $archiveId,
-                    ]);
+                    ->update($payload);
             }
 
             $courseSubmissionAnswers = DB::table('course_submission_answers')

@@ -28,7 +28,7 @@
                   v-on="on"
                 >
                   <span class="admin-archive-view__select-option-label">{{ item.name }}</span>
-                  <button
+                  <AppRawButton
                     type="button"
                     class="admin-archive-view__select-option-delete"
                     :disabled="deletingArchiveId === item.id"
@@ -40,7 +40,7 @@
                       class="fa-solid fa-trash-can"
                       aria-hidden="true"
                     />
-                  </button>
+                  </AppRawButton>
                 </div>
               </template>
             </AppSelect>
@@ -85,14 +85,14 @@
               :no-data-text="displayedStudentsEmptyText"
             >
               <template #[`item.full_name`]="{ item }">
-                <button
+                <AppRawButton
                   type="button"
                   class="admin-archive-view__student-link"
                   :class="{ 'admin-archive-view__student-link--active': selectedArchivedStudentId === item.id }"
                   @click="openArchivedStudentDetail(item)"
                 >
                   {{ item.full_name }}
-                </button>
+                </AppRawButton>
               </template>
               <template #[`item.archive_name`]="{ item }">
                 {{ item.archive_name || '---' }}
@@ -264,6 +264,38 @@
       </AppDialog>
 
       <AppDialog
+        v-model="deleteArchiveDialog"
+        max-width="460"
+        @close="closeDeleteArchiveDialog"
+      >
+        <div class="archive-dialog">
+          <AppDialogHeader title="تأكيد حذف الأرشيف" />
+          <AppDialogBody>
+            <p class="archive-dialog__confirm-text">
+              هل تريد حذف الأرشيف
+              <strong>{{ pendingDeleteArchive?.name }}</strong>؟
+            </p>
+          </AppDialogBody>
+          <AppDialogFooter class="archive-dialog__footer">
+            <AppButton
+              variant="secondary"
+              :disabled="Boolean(deletingArchiveId)"
+              @click="closeDeleteArchiveDialog"
+            >
+              إلغاء
+            </AppButton>
+            <AppButton
+              variant="danger"
+              :loading="Boolean(deletingArchiveId)"
+              @click="confirmDeleteArchive"
+            >
+              حذف
+            </AppButton>
+          </AppDialogFooter>
+        </div>
+      </AppDialog>
+
+      <AppDialog
         v-model="archiveAllDialog"
         max-width="620"
         @close="closeArchiveAllDialog"
@@ -367,7 +399,7 @@
 <script>
 import api from '../services/api';
 import {
-  AppButton, AppDialog, AppDialogBody, AppDialogFooter, AppDialogHeader, AppSelect,
+  AppButton, AppDialog, AppDialogBody, AppDialogFooter, AppDialogHeader, AppRawButton, AppSelect,
 } from '../components/ui';
 
 export default {
@@ -378,6 +410,7 @@ export default {
     AppDialogBody,
     AppDialogFooter,
     AppDialogHeader,
+    AppRawButton,
     AppSelect,
   },
   props: {
@@ -394,6 +427,8 @@ export default {
       loading: false,
       saving: false,
       deletingArchiveId: '',
+      deleteArchiveDialog: false,
+      pendingDeleteArchive: null,
       createDialog: false,
       newArchiveName: '',
       newArchiveCoursesCount: 0,
@@ -542,18 +577,12 @@ export default {
     notifySuccess(message) {
       if (this.$toast?.success) {
         this.$toast.success(message);
-        return;
       }
-
-      window.alert(message);
     },
     notifyError(message) {
       if (this.$toast?.error) {
         this.$toast.error(message);
-        return;
       }
-
-      window.alert(message);
     },
     async fetchArchives() {
       try {
@@ -587,7 +616,21 @@ export default {
         return;
       }
 
-      if (!window.confirm(`هل تريد حذف الأرشيف "${archive.name}"؟`)) {
+      this.pendingDeleteArchive = archive;
+      this.deleteArchiveDialog = true;
+    },
+    closeDeleteArchiveDialog() {
+      if (this.deletingArchiveId) {
+        return;
+      }
+
+      this.deleteArchiveDialog = false;
+      this.pendingDeleteArchive = null;
+    },
+    async confirmDeleteArchive() {
+      const archive = this.pendingDeleteArchive;
+
+      if (!archive || this.deletingArchiveId) {
         return;
       }
 
@@ -600,6 +643,8 @@ export default {
         this.clearArchivedStudentDetail();
         await this.fetchArchives();
         this.notifySuccess('تم حذف الأرشيف بنجاح.');
+        this.deleteArchiveDialog = false;
+        this.pendingDeleteArchive = null;
       } catch (err) {
         this.notifyError(err?.response?.data?.message || 'تعذر حذف الأرشيف.');
       } finally {

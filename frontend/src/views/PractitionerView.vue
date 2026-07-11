@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="landing-page">
     <header
       class="landing-header"
@@ -11,13 +11,13 @@
         >
           <div class="brand-mark__logos">
             <img
-              src="/شعار-الجمعية.png"
+              :src="$publicAsset('شعار-الجمعية.png')"
               alt="شعار الجمعية"
               class="site-logo"
               :class="scrolled ? 'site-logo--scrolled' : 'site-logo--top'"
             >
             <img
-              src="/اللوقو-شفاف.png"
+              :src="$publicAsset('اللوقو-شفاف.png')"
               alt="شعار برنامج رخصة ممارس"
               class="site-logo"
               :class="scrolled ? 'site-logo--scrolled' : 'site-logo--top'"
@@ -44,8 +44,8 @@
             class="account-menu account-menu--header"
             @click.stop
           >
-            <button
-              type="button"
+            <AppIconButton
+              variant="plain"
               class="header-icon-link"
               :aria-label="isAuthenticated ? 'الحساب' : 'التسجيل'"
               @click="handleAccountClick"
@@ -71,24 +71,24 @@
                   stroke-linecap="round"
                 />
               </svg>
-            </button>
+            </AppIconButton>
 
             <transition name="mobile-menu-fade">
               <div
                 v-if="accountMenuOpen && isAuthenticated"
                 class="account-menu__panel account-menu__panel--header"
               >
-                <button
-                  type="button"
+                <AppButton
+                  variant="plain"
                   class="account-menu__name"
                   @click="openProfileDialog"
                 >
                   {{ profileName }}
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   v-for="item in accountMenuItems"
                   :key="item.key"
-                  type="button"
+                  variant="plain"
                   class="account-menu__item"
                   :class="{
                     'account-menu__item--danger': item.danger,
@@ -98,7 +98,7 @@
                   @click="handleAccountMenuAction(item)"
                 >
                   {{ item.label }}
-                </button>
+                </AppButton>
               </div>
             </transition>
           </div>
@@ -112,8 +112,8 @@
             content-class="licenses-menu"
           >
             <template #activator="{ on, attrs }">
-              <button
-                type="button"
+              <AppIconButton
+                variant="plain"
                 class="licenses-menu-toggle"
                 aria-label="البرامج والرخص"
                 v-bind="attrs"
@@ -127,7 +127,7 @@
                   <span class="licenses-menu-toggle__bar" />
                   <span class="licenses-menu-toggle__bar" />
                 </span>
-              </button>
+              </AppIconButton>
             </template>
             <v-list class="licenses-list">
               <v-list-item disabled>
@@ -175,12 +175,12 @@
         <div class="hero-copy">
           <div class="hero-logos">
             <img
-              src="/شعار-الجمعية.png"
+              :src="$publicAsset('شعار-الجمعية.png')"
               alt="شعار الجمعية"
               class="hero-logo hero-logo--association"
             >
             <img
-              src="/اللوقو-شفاف.png"
+              :src="$publicAsset('اللوقو-شفاف.png')"
               alt="شعار برنامج رخصة ممارس"
               class="hero-logo"
             >
@@ -193,13 +193,16 @@
             {{ pageContent.heroText }}
           </p>
           <div class="hero-actions">
-            <a
+            <AppButton
+              variant="plain"
               href="#about"
               class="hero-outline-btn"
             >
               {{ pageContent.heroSecondaryButtonLabel }}
-              <v-icon small>mdi-arrow-left</v-icon>
-            </a>
+              <v-icon small>
+                mdi-arrow-left
+              </v-icon>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -475,7 +478,7 @@
         <div>
           <div class="footer-brand">
             <img
-              src="/اللوقو-شفاف.png"
+              :src="$publicAsset('اللوقو-شفاف.png')"
               alt="شعار برنامج رخصة ممارس"
               class="footer-brand__logo"
             >
@@ -519,8 +522,8 @@
         <div>
           <h4>{{ pageContent.footerPoliciesTitle }}</h4>
           <ul class="footer-links">
-            <li><a href="#">{{ pageContent.footerPrivacyLabel }}</a></li>
-            <li><a href="#">{{ pageContent.footerTermsLabel }}</a></li>
+            <li><span class="footer-links__muted">{{ pageContent.footerPrivacyLabel }}</span></li>
+            <li><span class="footer-links__muted">{{ pageContent.footerTermsLabel }}</span></li>
           </ul>
         </div>
       </div>
@@ -541,12 +544,12 @@
       <section class="login-modal__panel">
         <div class="login-modal__brand">
           <img
-            src="/شعار-الجمعية.png"
+            :src="$publicAsset('شعار-الجمعية.png')"
             alt="شعار الجمعية"
             class="login-modal__logo"
           >
           <img
-            src="/اللوقو-شفاف.png"
+            :src="$publicAsset('اللوقو-شفاف.png')"
             alt="شعار البرنامج"
             class="login-modal__logo login-modal__logo--program"
           >
@@ -643,8 +646,7 @@
 
 <script>
 import { mapActions, mapGetters, mapState } from 'vuex';
-import AppDialog from '../components/AppDialog.vue';
-import AppButton from '../components/AppButton.vue';
+import { AppButton, AppDialog, AppIconButton } from '../components/ui';
 import { fetchPublicRegistrationStatus, fetchPublicSnapshot, fetchPublicStats } from '../services/api';
 import { normalizePractitionerPageContent } from '../utils/practitionerPageContent';
 import { resolveUserHomeLabel, resolveUserHomeRoute } from '../utils/authRoutes';
@@ -656,7 +658,7 @@ const PRACTITIONER_PROGRAM_INDICATORS = [
   { key: 'assessments', label: 'اختبار قبلي وبعدي', display: '1920+', progress: 100 },
   { key: 'courses', label: 'دورة', display: '24', progress: 100 },
   { key: 'tasks', label: 'المهام الأدائية', display: '630+', progress: 100 },
-  { key: 'completed30', label: 'الطلاب الذين أتموا 30 جزءًا', display: '110', progress: 100 },
+  { key: 'completed30', label: 'عدد خريجي هذه الدفعة معلم ومعلمة', display: '110', progress: 100 },
 ];
 const DISPLAY_NUMBER_PATTERN = /^(.*?)([+-]?\d+(?:\.\d+)?)([^\d]*)$/;
 const easeOutCubic = (value) => 1 - ((1 - value) ** 3);
@@ -666,6 +668,7 @@ export default {
   components: {
     AppDialog,
     AppButton,
+    AppIconButton,
   },
   data() {
     return {
@@ -696,12 +699,12 @@ export default {
       ],
       licensePrograms: [
         {
-          key: 'practitioner',
-          title: 'رخصة ممارس',
+          key: 'licenses',
+          title: 'الرخص المهنية',
           menuSubtitle: '',
           available: true,
-          route: { name: 'practitioner' },
-          icon: 'mdi-certificate-outline',
+          route: { name: 'home', hash: '#programs' },
+          icon: 'mdi-view-grid-outline',
         },
         {
           key: 'manager',
@@ -880,7 +883,7 @@ export default {
     },
     accountRoleLabel() {
       const labels = {
-        admin: 'مدير عام',
+        admin: 'مدير النمو المهني',
         male_manager: 'مشرف',
         female_manager: 'مشرفة',
         reciter: 'مقرئ',
@@ -965,7 +968,10 @@ export default {
       return resolveUserHomeLabel(this.currentUser);
     },
     programIndicators() {
-      return PRACTITIONER_PROGRAM_INDICATORS;
+      return PRACTITIONER_PROGRAM_INDICATORS.map((indicator) => ({
+        ...indicator,
+        label: this.pageContent.indicatorLabels[indicator.key] || indicator.label,
+      }));
     },
     siteStats() {
       const s = this.publicStats;
@@ -1689,6 +1695,10 @@ export default {
   font-size: 1.1rem;
   padding: 10px 0;
   color: #08384a;
+}
+
+::v-deep(.licenses-menu) {
+  max-width: calc(100vw - 32px);
 }
 
 .license-item {
@@ -2732,6 +2742,11 @@ export default {
   text-decoration: none;
 }
 
+.footer-links__muted {
+  color: inherit;
+  cursor: default;
+}
+
 .landing-footer__bottom {
   position: relative;
   display: flex;
@@ -3137,6 +3152,13 @@ export default {
   .licenses-menu-toggle {
     width: 44px;
     height: 44px;
+  }
+
+  ::v-deep(.licenses-menu) {
+    right: 16px !important;
+    left: auto !important;
+    width: min(330px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
   }
 
   .account-menu__panel--header {

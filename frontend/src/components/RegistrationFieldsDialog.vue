@@ -5,23 +5,23 @@
     @input="$emit('input', $event)"
     @close="closeDialog"
   >
-    <div class="registration-fields-dialog">
+    <div class="registration-fields-dialog app-dialog">
       <AppDialogHeader title="تعديل بيانات التسجيل" />
 
-      <AppDialogBody>
+      <AppDialogBody class="registration-fields-dialog__body">
         <div
           class="registration-fields-dialog__fixed-fields"
           aria-label="حقول التسجيل الأساسية"
         >
-          <button
+          <AppButton
             v-for="field in fixedFields"
             :key="field"
-            type="button"
+            variant="plain"
             class="registration-fields-dialog__fixed-field"
             disabled
           >
             {{ field }}
-          </button>
+          </AppButton>
         </div>
 
         <div class="registration-fields-dialog__fields-stack">
@@ -35,6 +35,7 @@
                 <span class="registration-fields-dialog__accept-label">السؤال</span>
                 <AppTextField
                   v-model.trim="field.label"
+                  class="registration-fields-dialog__input"
                   dense
                   outlined
                   hide-details
@@ -48,6 +49,7 @@
                   :items="fieldTypeOptions"
                   item-text="label"
                   item-value="value"
+                  class="registration-fields-dialog__input"
                   dense
                   outlined
                   hide-details
@@ -97,7 +99,7 @@
         </AppButton>
       </AppDialogBody>
 
-      <AppDialogFooter>
+      <AppDialogFooter class="registration-fields-dialog__footer">
         <AppButton
           variant="secondary"
           @click="closeDialog"
@@ -167,15 +169,26 @@ export default {
       immediate: true,
       handler(isOpen) {
         if (isOpen) {
-          this.formFields = this.fields.map((field) => this.createFieldDraft(field));
+          this.syncFieldDrafts();
           return;
         }
 
         this.formFields = [];
       },
     },
+    fields: {
+      deep: true,
+      handler() {
+        if (this.value) {
+          this.syncFieldDrafts();
+        }
+      },
+    },
   },
   methods: {
+    syncFieldDrafts() {
+      this.formFields = this.fields.map((field) => this.createFieldDraft(field));
+    },
     createFieldDraft(field = {}) {
       const options = Array.isArray(field.options) ? field.options : [];
 
@@ -220,49 +233,54 @@ export default {
 
 <style scoped>
 .registration-fields-dialog__accept-field {
-  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
 }
 
 .registration-fields-dialog__accept-label {
-  display: block;
-  margin-bottom: 8px;
   color: #334155;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
+}
+
+.registration-fields-dialog__body {
+  gap: 16px;
 }
 
 .registration-fields-dialog__fields-stack {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .registration-fields-dialog__fixed-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
 }
 
 .registration-fields-dialog__fixed-field {
-  min-height: 64px;
-  padding: 12px 14px;
-  border: 1px solid rgba(20, 109, 136, 0.16);
-  border-radius: 16px;
-  background: rgba(8, 118, 153, 0.07);
-  color: #0f172a;
+  min-height: 46px;
+  padding: 9px 12px;
+  border: 1px solid rgba(143, 191, 211, 0.58);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.86);
+  color: #123f56;
   font: inherit;
-  font-size: 0.94rem;
-  font-weight: 900;
+  font-size: 0.9rem;
+  font-weight: 800;
   text-align: right;
   cursor: not-allowed;
   opacity: 1;
 }
 
 .registration-fields-dialog__field-editor {
-  padding: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.88);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.62);
 }
 
 .registration-fields-dialog__field-grid {
@@ -271,16 +289,39 @@ export default {
   gap: 12px;
 }
 
+.registration-fields-dialog__input {
+  width: 100%;
+}
+
+.registration-fields-dialog__input :deep(.v-input__slot) {
+  min-height: 48px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  direction: rtl;
+}
+
+.registration-fields-dialog__input :deep(input),
+.registration-fields-dialog__input :deep(.v-select__selection),
+.registration-fields-dialog__input :deep(.v-select__selections) {
+  text-align: right;
+}
+
 .registration-fields-dialog__textarea {
   width: 100%;
-  min-height: 108px;
+  min-height: 96px;
   padding: 12px 14px;
-  border: 1px solid rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(143, 191, 211, 0.72);
   border-radius: 12px;
   background: #ffffff;
-  color: #0f172a;
+  color: #123f56;
   font: inherit;
   resize: vertical;
+  outline: none;
+}
+
+.registration-fields-dialog__textarea:focus {
+  border-color: #107699;
+  box-shadow: 0 0 0 4px rgba(16, 118, 153, 0.14);
 }
 
 .registration-fields-dialog__field-actions {
@@ -288,7 +329,6 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
 }
 
 .registration-fields-dialog__field-required {
@@ -296,7 +336,12 @@ export default {
 }
 
 .registration-fields-dialog__add-field {
-  margin-top: 14px;
+  justify-self: start;
+  margin-top: 2px;
+}
+
+.registration-fields-dialog__footer {
+  flex-shrink: 0;
 }
 
 @media (max-width: 960px) {

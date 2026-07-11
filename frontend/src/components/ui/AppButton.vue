@@ -61,7 +61,7 @@ export default {
     variant: {
       type: String,
       default: 'primary',
-      validator: (value) => ['primary', 'secondary', 'danger', 'success'].includes(value),
+      validator: (value) => ['primary', 'secondary', 'danger', 'success', 'plain'].includes(value),
     },
     nativeType: {
       type: String,

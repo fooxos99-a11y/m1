@@ -17,14 +17,14 @@
         >
           <div class="registration-entry__brand">
             <img
-              src="/اللوقو-شفاف.png"
+              :src="$publicAsset('اللوقو-شفاف.png')"
               alt="شعار برنامج رخصة ممارس"
               class="registration-entry__logo"
             >
             <div class="registration-entry__divider" />
-            <div class="registration-entry__title">
+            <h1 class="registration-entry__title">
               التسجيل في برنامج رخصة ممارس
-            </div>
+            </h1>
           </div>
 
           <div
@@ -52,7 +52,7 @@
             <div class="registration-entry__form-grid">
               <div class="registration-entry__field">
                 <label class="registration-entry__label">الاسم</label>
-                <v-text-field
+                <AppTextField
                   v-model.trim="form.name"
                   dense
                   outlined
@@ -64,7 +64,7 @@
 
               <div class="registration-entry__field">
                 <label class="registration-entry__label">رقم الهوية</label>
-                <v-text-field
+                <AppTextField
                   v-model.trim="form.loginCode"
                   dense
                   outlined
@@ -91,7 +91,7 @@
 
               <div class="registration-entry__field">
                 <label class="registration-entry__label">العمر</label>
-                <v-text-field
+                <AppTextField
                   v-model.number="form.age"
                   type="number"
                   min="1"
@@ -110,7 +110,7 @@
                 class="registration-entry__field"
               >
                 <label class="registration-entry__label">{{ field.label }}</label>
-                <v-text-field
+                <AppTextField
                   v-if="field.type === 'text'"
                   v-model.trim="form.answers[field.id]"
                   dense
@@ -149,8 +149,7 @@
 </template>
 
 <script>
-import AppButton from '../components/AppButton.vue';
-import AppSelect from '../components/AppSelect.vue';
+import { AppButton, AppSelect, AppTextField } from '../components/ui';
 import { fetchPublicRegistrationStatus, submitPublicRegistrationRequest } from '../services/api';
 
 export default {
@@ -158,6 +157,7 @@ export default {
   components: {
     AppButton,
     AppSelect,
+    AppTextField,
   },
   data() {
     return {
@@ -299,6 +299,7 @@ export default {
   font-size: 2rem;
   font-weight: 900;
   line-height: 1.4;
+  margin: 0;
 }
 
 .registration-entry__state {
@@ -337,6 +338,47 @@ export default {
   color: #244154;
   font-size: 0.96rem;
   font-weight: 800;
+}
+
+.registration-entry__input {
+  width: 100%;
+}
+
+.registration-entry__input :deep(.v-input__slot) {
+  min-height: var(--app-select-min-height) !important;
+  padding-inline: 16px !important;
+  border-radius: var(--app-select-radius) !important;
+  background: var(--app-select-bg) !important;
+  box-shadow: var(--app-select-shadow) !important;
+  direction: rtl;
+}
+
+.registration-entry__input :deep(fieldset) {
+  border-color: var(--app-select-border) !important;
+  border-width: 1px !important;
+}
+
+.registration-entry__input.v-input--is-focused :deep(fieldset) {
+  border-color: var(--app-select-border-strong) !important;
+}
+
+.registration-entry__input.v-input--is-focused :deep(.v-input__slot) {
+  box-shadow: var(--app-select-focus-shadow) !important;
+}
+
+.registration-entry__input :deep(input),
+.registration-entry__input :deep(.v-select__selection),
+.registration-entry__input :deep(.v-select__selections) {
+  color: var(--app-select-text) !important;
+  font-family: 'Tajawal', system-ui, sans-serif !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  text-align: right;
+}
+
+.registration-entry__input :deep(.v-select__selections) {
+  justify-content: flex-start;
 }
 
 .registration-entry__actions {

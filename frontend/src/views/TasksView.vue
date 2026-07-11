@@ -24,19 +24,19 @@
           >
             <img
               v-if="previewKind === 'image'"
-              :src="previewAttachment.dataUrl"
+              :src="previewAttachmentSource"
               alt="معاينة المرفق"
               class="assessment-dialog__image"
             >
             <iframe
               v-else-if="previewKind === 'pdf'"
-              :src="previewAttachment.dataUrl"
+              :src="previewAttachmentSource"
               title="معاينة PDF"
               class="assessment-dialog__frame"
             />
             <video
               v-else-if="previewKind === 'video'"
-              :src="previewAttachment.dataUrl"
+              :src="previewAttachmentSource"
               controls
               class="assessment-dialog__video"
             />
@@ -98,7 +98,7 @@
       <div class="assessment-stage">
         <div class="assessment-hero">
           <img
-            src="/اللوقو-شفاف.png"
+            :src="$publicAsset('اللوقو-شفاف.png')"
             alt="شعار برنامج رخصة ممارس"
             class="assessment-hero__logo"
           >
@@ -268,7 +268,7 @@
                         عرض المحتوى
                       </AppButton>
                       <AppButton
-                        v-if="files[question.id]?.dataUrl"
+                        v-if="files[question.id]?.previewUrl"
                         variant="secondary"
                         class="assessment-pill-button assessment-pill-button--ghost"
                         @click="openAttachmentPreview(files[question.id])"
@@ -287,6 +287,7 @@
                       :key="option"
                       block
                       class="assessment-option"
+                      :class="{ 'assessment-option--active': answers[question.id] === option }"
                       :active="answers[question.id] === option"
                       @click="setAnswer(question.id, option)"
                     >
@@ -337,9 +338,7 @@
 </template>
 
 <script>
-import AppDialog from '@/components/AppDialog.vue';
-import AppButton from '@/components/AppButton.vue';
-import AppChoiceButton from '@/components/AppChoiceButton.vue';
+import { AppButton, AppChoiceButton, AppDialog } from '@/components/ui';
 import RichTextEditor from '@/components/RichTextEditor.vue';
 import {
   fetchPublicSnapshot,
@@ -349,6 +348,14 @@ import {
   submitPublicAssessment,
 } from '@/services/api';
 import { hasMeaningfulDocumentContent } from '@/utils/documentContent';
+
+const readTaskFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+
+  reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+  reader.onerror = () => reject(new Error('task-file-read-failed'));
+  reader.readAsDataURL(file);
+});
 
 export default {
   name: 'TasksView',
@@ -481,21 +488,24 @@ export default {
     },
     previewKind() {
       const type = this.previewAttachment?.type || '';
-      const dataUrl = this.previewAttachment?.dataUrl || '';
+      const source = this.previewAttachmentSource;
 
-      if (type.startsWith('image/') || dataUrl.startsWith('data:image/')) {
+      if (type.startsWith('image/') || source.startsWith('data:image/')) {
         return 'image';
       }
 
-      if (type === 'application/pdf' || dataUrl.startsWith('data:application/pdf')) {
+      if (type === 'application/pdf' || source.startsWith('data:application/pdf')) {
         return 'pdf';
       }
 
-      if (type.startsWith('video/') || dataUrl.startsWith('data:video/')) {
+      if (type.startsWith('video/') || source.startsWith('data:video/')) {
         return 'video';
       }
 
       return 'other';
+    },
+    previewAttachmentSource() {
+      return this.previewAttachment?.previewUrl || this.previewAttachment?.dataUrl || '';
     },
   },
   watch: {
@@ -531,6 +541,8 @@ export default {
     selectedTaskId: {
       immediate: true,
       handler(taskId) {
+        this.clearSelectedFiles();
+
         if (!taskId) {
           this.answers = {};
           this.files = {};
@@ -565,6 +577,7 @@ export default {
       this.publicLoadingGuardTimer = null;
     }
 
+    this.clearSelectedFiles();
   },
   methods: {
     resolveAuthenticatedFallbackRoute() {
@@ -822,34 +835,66 @@ export default {
       this.previewDialogOpen = false;
       this.previewAttachment = null;
     },
-    async handleFileSelect(questionId, event) {
+    handleFileSelect(questionId, event) {
       const file = event?.target?.files?.[0];
 
       if (!file) {
         return;
       }
 
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
+      this.clearSelectedFile(questionId);
 
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = () => reject(new Error('task-file-read-failed'));
-        reader.readAsDataURL(file);
-      }).catch(() => '');
-
-      if (!dataUrl) {
-        this.pageError = 'تعذر قراءة الملف المرفوع.';
-        event.target.value = '';
-        return;
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(file);
+      } catch (error) {
+        previewUrl = '';
       }
 
       this.$set(this.files, questionId, {
+        file,
         name: file.name,
         type: file.type,
-        dataUrl,
+        previewUrl,
       });
       this.pageError = '';
       event.target.value = '';
+    },
+    clearSelectedFile(questionId) {
+      const currentFile = this.files[questionId];
+
+      if (currentFile?.previewUrl) {
+        URL.revokeObjectURL(currentFile.previewUrl);
+      }
+    },
+    clearSelectedFiles() {
+      Object.keys(this.files || {}).forEach((questionId) => {
+        this.clearSelectedFile(questionId);
+      });
+    },
+    async buildSubmissionAnswers(questionList) {
+      return Promise.all(questionList.map(async (question) => {
+        const selectedFile = this.files[question.id] || null;
+        let fileDataUrl = null;
+
+        if (selectedFile?.file) {
+          fileDataUrl = await readTaskFileAsDataUrl(selectedFile.file);
+
+          if (!fileDataUrl) {
+            throw new Error('تعذر قراءة المرفق. جرب ملفا أصغر أو أغلقه من البرامج الأخرى ثم أعد اختياره.');
+          }
+        }
+
+        return {
+          questionId: question.id,
+          value: this.selectedTask.taskMode === 'document'
+            ? this.documentAnswer
+            : (this.answers[question.id] || ''),
+          fileName: selectedFile?.name || null,
+          fileType: selectedFile?.type || null,
+          fileDataUrl,
+        };
+      }));
     },
     async handleSubmit() {
       if (!this.selectedTask || !this.student) {
@@ -888,20 +933,14 @@ export default {
           ? [this.documentQuestion].filter(Boolean)
           : this.taskQuestions;
 
+        const answers = await this.buildSubmissionAnswers(questionList);
+
         await submitPublicAssessment({
           courseId: this.selectedTask.id,
           assessmentType: 'tasks',
           studentName: this.student.name,
           loginId: this.student.loginId,
-          answers: questionList.map((question) => ({
-            questionId: question.id,
-            value: this.selectedTask.taskMode === 'document'
-              ? this.documentAnswer
-              : (this.answers[question.id] || ''),
-            fileName: this.files[question.id]?.name || null,
-            fileType: this.files[question.id]?.type || null,
-            fileDataUrl: this.files[question.id]?.dataUrl || null,
-          })),
+          answers,
         });
 
         this.pageError = '';

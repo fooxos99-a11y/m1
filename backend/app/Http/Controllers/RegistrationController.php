@@ -20,12 +20,12 @@ class RegistrationController extends Controller
     public function submit(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string'],
-            'loginCode' => ['required', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'loginCode' => ['required', 'string', 'max:255'],
             'age' => ['required', 'integer', 'min:1', 'max:120'],
             'gender' => ['required', 'in:male,female'],
             'answers' => ['nullable', 'array'],
-            'answers.*' => ['nullable', 'string'],
+            'answers.*' => ['nullable', 'string', 'max:2000'],
         ]);
 
         return response()->json(
@@ -60,12 +60,12 @@ class RegistrationController extends Controller
     {
         $data = $request->validate([
             'fields' => ['present', 'array'],
-            'fields.*.id' => ['nullable', 'string'],
-            'fields.*.label' => ['required', 'string'],
+            'fields.*.id' => ['nullable', 'string', 'max:100'],
+            'fields.*.label' => ['required', 'string', 'max:255'],
             'fields.*.type' => ['required', 'in:text,select'],
             'fields.*.required' => ['nullable', 'boolean'],
             'fields.*.options' => ['nullable', 'array'],
-            'fields.*.options.*' => ['nullable', 'string'],
+            'fields.*.options.*' => ['nullable', 'string', 'max:255'],
         ]);
 
         return response()->json([
@@ -76,7 +76,7 @@ class RegistrationController extends Controller
     public function accept(Request $request, string $requestId): JsonResponse
     {
         $data = $request->validate([
-            'branchId' => ['nullable', 'string'],
+            'branchId' => ['nullable', 'string', 'max:100'],
         ]);
 
         return response()->json($this->coreDataService->acceptRegistrationRequest($requestId, $data['branchId'] ?? null));

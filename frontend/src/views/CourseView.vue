@@ -48,13 +48,12 @@
             </div>
           </div>
           <div class="assessment-dialog__actions">
-            <v-btn
-              outlined
-              color="primary"
+            <AppButton
+              variant="secondary"
               @click="closePreview"
             >
               إغلاق
-            </v-btn>
+            </AppButton>
           </div>
         </v-card>
       </AppDialog>
@@ -86,13 +85,12 @@
             </div>
           </div>
           <div class="assessment-dialog__actions">
-            <v-btn
-              color="primary"
-              depressed
+            <AppButton
+              variant="primary"
               @click="handleLogin"
             >
               دخول
-            </v-btn>
+            </AppButton>
           </div>
         </v-card>
       </AppDialog>
@@ -100,7 +98,7 @@
       <div class="assessment-stage">
         <div class="assessment-hero">
           <img
-            src="/اللوقو-شفاف.png"
+            :src="$publicAsset('اللوقو-شفاف.png')"
             alt="شعار برنامج رخصة ممارس"
             class="assessment-hero__logo"
           >
@@ -203,9 +201,9 @@
                       class="assessment-file-input"
                       @change="handleStudentFileSelect(question.id, $event)"
                     >
-                    <button
+                    <AppButton
                       v-if="question.attachmentDataUrl"
-                      type="button"
+                      variant="secondary"
                       class="assessment-pill-button assessment-pill-button--ghost"
                       @click="openAttachmentPreview({
                         name: question.attachmentName,
@@ -214,15 +212,15 @@
                       })"
                     >
                       عرض المحتوى
-                    </button>
-                    <button
+                    </AppButton>
+                    <AppButton
                       v-if="files[question.id]?.dataUrl"
-                      type="button"
+                      variant="secondary"
                       class="assessment-pill-button assessment-pill-button--ghost"
                       @click="openAttachmentPreview(files[question.id])"
                     >
                       معاينة المرفق
-                    </button>
+                    </AppButton>
                   </div>
                 </div>
 
@@ -230,16 +228,17 @@
                   v-if="question.type === 'multiple'"
                   class="assessment-options-grid"
                 >
-                  <button
+                  <AppChoiceButton
                     v-for="option in question.options"
                     :key="option"
-                    type="button"
+                    block
                     class="assessment-option"
                     :class="{ 'assessment-option--active': answers[question.id] === option }"
+                    :active="answers[question.id] === option"
                     @click="setAnswer(question.id, option)"
                   >
                     {{ option }}
-                  </button>
+                  </AppChoiceButton>
                 </div>
 
                 <v-textarea
@@ -335,16 +334,15 @@
               v-if="canSubmitFlow && (questions.length || hasPendingPostSatisfaction)"
               class="assessment-submit-row"
             >
-              <v-btn
-                color="primary"
-                depressed
+              <AppButton
+                variant="primary"
                 class="assessment-submit-button"
                 :loading="submitting"
                 :disabled="submitting || !isAssessmentEnabled"
                 @click="handleSubmit"
               >
                 إرسال
-              </v-btn>
+              </AppButton>
             </div>
 
             <div
@@ -361,7 +359,7 @@
 </template>
 
 <script>
-import AppDialog from '@/components/AppDialog.vue';
+import { AppButton, AppChoiceButton, AppDialog } from '@/components/ui';
 import {
   fetchPublicSnapshot,
   loadAccessSession,
@@ -381,6 +379,8 @@ const ASSESSMENT_LABELS = {
 export default {
   name: 'CourseView',
   components: {
+    AppButton,
+    AppChoiceButton,
     AppDialog,
   },
   props: {

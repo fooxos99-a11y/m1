@@ -6,8 +6,8 @@ use App\Events\DashboardActivityLogged;
 use App\Events\DashboardNotificationCreated;
 use App\Events\DashboardNotificationDeleted;
 use App\Models\Branch;
-use App\Models\RegistrationRequest;
 use App\Models\Reciter;
+use App\Models\RegistrationRequest;
 use App\Models\Student;
 use App\Models\TrainingMaterial;
 use App\Models\User;
@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
+use ZipArchive;
 
 class CoreDataService
 {
@@ -51,7 +52,9 @@ class CoreDataService
         $rolePermissions = DB::table('role_permissions')->get();
         $trainingMaterials = TrainingMaterial::query()->with('media')->orderByDesc('created_at')->get();
 
-        $currentRole = (string) (auth()->user()?->role ?? '');
+        $currentUser = auth('sanctum')->user() ?: auth()->user();
+        $currentRole = (string) ($currentUser?->role ?? '');
+        $currentLoginCode = trim((string) ($currentUser?->login_code ?? ''));
 
         if ($managedBranchId !== '') {
             $students = $students->filter(fn (Student $student) => ($student->branch?->code ?? 'male') === $managedBranchId)->values();
@@ -78,12 +81,44 @@ class CoreDataService
         }
 
         if (! in_array($currentRole, ['admin', 'male_manager', 'female_manager'], true)) {
-            $studentBranchCode = $currentRole === 'student'
-                ? Student::query()
-                    ->where('login_code', auth()->user()?->login_code)
-                    ->with('branch')
-                    ->first()?->branch?->code
-                : null;
+            if (in_array($currentRole, ['student', 'trainee'], true)) {
+                $students = $students
+                    ->filter(fn (Student $student) => (string) $student->login_code === $currentLoginCode)
+                    ->values();
+                $reciters = collect();
+            } elseif ($currentRole === 'reciter') {
+                $currentReciter = $reciters->first(
+                    fn (Reciter $reciter) => (string) ($reciter->user?->login_code ?? '') === $currentLoginCode,
+                );
+                $students = $currentReciter
+                    ? $currentReciter->students->loadMissing(['branch', 'parts'])->values()
+                    : collect();
+                $reciters = $currentReciter ? collect([$currentReciter]) : collect();
+            } else {
+                $students = collect();
+                $reciters = collect();
+            }
+
+            $allowedStudentLogins = $students
+                ->map(fn (Student $student) => (string) $student->login_code)
+                ->filter(fn (string $loginCode) => $loginCode !== '')
+                ->flip();
+            $allowedBranchCodes = $students
+                ->map(fn (Student $student) => (string) ($student->branch?->code ?? ''))
+                ->filter()
+                ->unique()
+                ->flip();
+
+            $submissions = $submissions->filter(fn ($submission) => $allowedStudentLogins->has((string) $submission->login_code))->values();
+            $attendance = $attendance->filter(fn ($item) => $allowedStudentLogins->has((string) $item->login_code))->values();
+            $satisfactionResponses = $satisfactionResponses->filter(fn ($item) => $allowedStudentLogins->has((string) $item->login_code))->values();
+            $finalExamQuestions = $finalExamQuestions->filter(fn ($item) => $allowedBranchCodes->has((string) $item->branch_code))->values();
+            $finalExamSubmissions = $finalExamSubmissions->filter(fn ($item) => $allowedStudentLogins->has((string) $item->login_code))->values();
+            $notifications = collect();
+            $activityLogs = collect();
+            $rolePermissions = collect();
+
+            $studentBranchCode = $students->first()?->branch?->code;
 
             $trainingMaterials = $trainingMaterials
                 ->filter(fn (TrainingMaterial $material) => $material->target_branch_code !== 'supervision'
@@ -99,7 +134,7 @@ class CoreDataService
 
         return [
             'roles' => [
-                ['id' => 'admin', 'label' => 'مدير عام'],
+                ['id' => 'admin', 'label' => 'مدير النمو المهني'],
                 ['id' => 'male_manager', 'label' => 'مشرف'],
                 ['id' => 'female_manager', 'label' => 'مشرفة'],
                 ['id' => 'student', 'label' => 'معلم/ة'],
@@ -109,9 +144,9 @@ class CoreDataService
             'branches' => $branches
                 ->filter(fn (Branch $branch) => $managedBranchId === '' || $branch->code === $managedBranchId)
                 ->map(fn (Branch $branch) => [
-                'id' => $branch->code,
-                'label' => $branch->name,
-            ])->values()->all(),
+                    'id' => $branch->code,
+                    'label' => $branch->name,
+                ])->values()->all(),
             'students' => $students->map(fn (Student $student) => [
                 'id' => $student->id,
                 'name' => $student->full_name,
@@ -373,11 +408,11 @@ class CoreDataService
         }
 
         return [
-            'graduates'       => $graduatesCount,
+            'graduates' => $graduatesCount,
             'satisfactionRate' => $satisfactionRate,
-            'courses'         => $baseStats['courses'],
-            'batches'         => $baseStats['batches'],
-            'licenseDetails'  => $baseStats['licenseDetails'],
+            'courses' => $baseStats['courses'],
+            'batches' => $baseStats['batches'],
+            'licenseDetails' => $baseStats['licenseDetails'],
             'graduateDetails' => [
                 'manager' => $baseStats['managerGraduates'],
                 'supervisor' => $baseStats['supervisorGraduates'],
@@ -458,6 +493,249 @@ class CoreDataService
         $this->storeJsonAppSetting('practitioner_page_content', $normalized);
 
         return $normalized;
+    }
+
+    public function createDashboardBackupZip(string $zipPath): void
+    {
+        $snapshot = $this->loadDashboardSnapshot();
+        $snapshot['backupMeta'] = [
+            'version' => 1,
+            'createdAt' => now()->toISOString(),
+            'includesMediaFiles' => true,
+        ];
+
+        $mediaIndex = $this->attachTrainingMaterialMediaBackupPaths($snapshot);
+        $zip = new ZipArchive;
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw ValidationException::withMessages(['backup' => 'تعذر إنشاء ملف النسخة الاحتياطية.']);
+        }
+
+        $zip->addFromString('backup.json', json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        foreach ($mediaIndex as $entry) {
+            if (is_file($entry['sourcePath'])) {
+                $zip->addFile($entry['sourcePath'], $entry['backupPath']);
+            }
+        }
+
+        $zip->close();
+    }
+
+    public function restoreDashboardBackupZip(string $zipPath): array
+    {
+        $extractPath = storage_path('app/backup-restore/'.Str::uuid());
+        File::ensureDirectoryExists($extractPath);
+
+        $zip = new ZipArchive;
+
+        if ($zip->open($zipPath) !== true) {
+            File::deleteDirectory($extractPath);
+            throw ValidationException::withMessages(['backup' => 'تعذر فتح ملف النسخة الاحتياطية.']);
+        }
+
+        try {
+            $this->extractDashboardBackupZipSafely($zip, $extractPath);
+        } catch (\Throwable $exception) {
+            $zip->close();
+            File::deleteDirectory($extractPath);
+
+            throw $exception;
+        }
+
+        $zip->close();
+
+        $backupJsonPath = $extractPath.DIRECTORY_SEPARATOR.'backup.json';
+
+        if (! is_file($backupJsonPath)) {
+            File::deleteDirectory($extractPath);
+            throw ValidationException::withMessages(['backup' => 'ملف ZIP لا يحتوي backup.json.']);
+        }
+
+        $snapshot = json_decode((string) file_get_contents($backupJsonPath), true);
+
+        if (! is_array($snapshot)) {
+            File::deleteDirectory($extractPath);
+            throw ValidationException::withMessages(['backup' => 'ملف backup.json غير صالح.']);
+        }
+
+        try {
+            return $this->restoreDashboardSnapshot($snapshot, $extractPath);
+        } finally {
+            File::deleteDirectory($extractPath);
+        }
+    }
+
+    private function extractDashboardBackupZipSafely(ZipArchive $zip, string $extractPath): void
+    {
+        $entries = [];
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entryName = $zip->getNameIndex($index);
+
+            if (! is_string($entryName)) {
+                throw ValidationException::withMessages(['backup' => 'ملف ZIP يحتوي مسارًا غير آمن.']);
+            }
+
+            $normalizedName = $this->normalizeBackupZipEntryName($entryName);
+
+            if ($normalizedName === null) {
+                throw ValidationException::withMessages(['backup' => 'ملف ZIP يحتوي مسارًا غير آمن.']);
+            }
+
+            $entries[$entryName] = $normalizedName;
+        }
+
+        foreach ($entries as $entryName => $normalizedName) {
+            $isDirectory = str_ends_with(str_replace('\\', '/', $entryName), '/');
+            $targetPath = $this->resolveBackupExtractionPath($extractPath, $normalizedName, $isDirectory);
+
+            if ($isDirectory) {
+                continue;
+            }
+
+            $source = $zip->getStream($entryName);
+
+            if ($source === false) {
+                throw ValidationException::withMessages(['backup' => 'تعذر قراءة ملف داخل النسخة الاحتياطية.']);
+            }
+
+            $target = fopen($targetPath, 'wb');
+
+            if ($target === false) {
+                fclose($source);
+                throw ValidationException::withMessages(['backup' => 'تعذر استخراج ملف النسخة الاحتياطية.']);
+            }
+
+            stream_copy_to_stream($source, $target);
+            fclose($target);
+            fclose($source);
+        }
+    }
+
+    private function normalizeBackupZipEntryName(string $entryName): ?string
+    {
+        if ($entryName === '' || str_contains($entryName, "\0")) {
+            return null;
+        }
+
+        $normalizedName = str_replace('\\', '/', $entryName);
+
+        if (
+            str_starts_with($normalizedName, '/')
+            || preg_match('/^[A-Za-z]:/', $normalizedName) === 1
+        ) {
+            return null;
+        }
+
+        $normalizedName = trim($normalizedName, '/');
+
+        if ($normalizedName === '') {
+            return null;
+        }
+
+        foreach (explode('/', $normalizedName) as $part) {
+            if ($part === '' || $part === '.' || $part === '..') {
+                return null;
+            }
+        }
+
+        return $normalizedName;
+    }
+
+    private function resolveBackupExtractionPath(string $extractPath, string $normalizedName, bool $isDirectory = false): string
+    {
+        $targetPath = $extractPath.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $normalizedName);
+        $directoryPath = $isDirectory ? $targetPath : dirname($targetPath);
+
+        File::ensureDirectoryExists($directoryPath);
+
+        $basePath = realpath($extractPath) ?: $extractPath;
+        $resolvedDirectory = realpath($directoryPath);
+
+        if (
+            $resolvedDirectory === false
+            || ! str_starts_with(
+                rtrim($resolvedDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR,
+                rtrim($basePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR,
+            )
+        ) {
+            throw ValidationException::withMessages(['backup' => 'ملف ZIP يحتوي مسارًا غير آمن.']);
+        }
+
+        return $targetPath;
+    }
+
+    public function restoreDashboardSnapshot(array $snapshot, ?string $mediaRoot = null): array
+    {
+        $this->validateDashboardSnapshotForRestore($snapshot);
+
+        DB::transaction(function () use ($snapshot, $mediaRoot): void {
+            $this->purgeActiveDashboardData();
+            $this->restoreBranchesFromSnapshot($snapshot['branches'] ?? []);
+
+            $studentIdMap = $this->restoreStudentsFromSnapshot($snapshot['students'] ?? []);
+            $reciterIdMap = $this->restoreRecitersFromSnapshot($snapshot['reciters'] ?? [], $studentIdMap);
+            $courseQuestionIds = $this->restoreCoursesFromSnapshot($snapshot['courses'] ?? []);
+
+            $this->restoreTaskTemplatesFromSnapshot($snapshot['taskTemplates'] ?? []);
+            $this->restoreCourseSubmissionsFromSnapshot($snapshot['submissions'] ?? [], $courseQuestionIds);
+            $this->restoreAttendanceFromSnapshot($snapshot['attendance'] ?? []);
+            $this->restoreNotificationsFromSnapshot($snapshot['notifications'] ?? []);
+            $this->restoreSatisfactionFromSnapshot($snapshot['satisfactionQuestions'] ?? [], $snapshot['satisfactionResponses'] ?? []);
+            $this->restoreFinalExamFromSnapshot($snapshot['finalExamQuestions'] ?? [], $snapshot['finalExamSubmissions'] ?? [], $snapshot['finalExamSettings'] ?? []);
+            $this->restoreTrainingMaterialsFromSnapshot($snapshot['trainingMaterials'] ?? [], $mediaRoot);
+            $this->restoreRolePermissionsFromSnapshot($snapshot['rolePermissions'] ?? []);
+
+            if (array_key_exists('homePageContent', $snapshot)) {
+                $this->storeJsonAppSetting('home_page_content', $this->normalizeHomePageContent((array) $snapshot['homePageContent']));
+            }
+
+            if (array_key_exists('practitionerPageContent', $snapshot)) {
+                $this->storeJsonAppSetting('practitioner_page_content', $this->normalizePractitionerPageContent((array) $snapshot['practitionerPageContent']));
+            }
+        });
+
+        $this->flushDashboardCaches();
+
+        return $this->loadDashboardSnapshot();
+    }
+
+    private function validateDashboardSnapshotForRestore(array $snapshot): void
+    {
+        $requiredArrayKeys = ['students', 'courses'];
+        $optionalArrayKeys = [
+            'roles',
+            'branches',
+            'reciters',
+            'taskTemplates',
+            'submissions',
+            'attendance',
+            'notifications',
+            'activityLogs',
+            'satisfactionQuestions',
+            'satisfactionResponses',
+            'finalExamQuestions',
+            'finalExamSubmissions',
+            'finalExamSettings',
+            'trainingMaterials',
+            'homePageContent',
+            'practitionerPageContent',
+            'rolePermissions',
+            'backupMeta',
+        ];
+
+        foreach ($requiredArrayKeys as $key) {
+            if (! array_key_exists($key, $snapshot) || ! is_array($snapshot[$key])) {
+                throw ValidationException::withMessages(['snapshot' => 'ملف النسخة الاحتياطية غير صالح أو ناقص.']);
+            }
+        }
+
+        foreach ($optionalArrayKeys as $key) {
+            if (array_key_exists($key, $snapshot) && ! is_array($snapshot[$key])) {
+                throw ValidationException::withMessages(['snapshot' => 'ملف النسخة الاحتياطية غير صالح أو ناقص.']);
+            }
+        }
     }
 
     public function createRegistrationRequest(string $name, string $loginCode, int $age, string $gender, array $answers = []): array
@@ -1151,8 +1429,8 @@ class CoreDataService
         }
 
         $payload = [];
-    $wasTasksEnabled = (bool) $course->is_tasks_enabled;
-    $previousWindows = $this->decodeJsonObject($course->assessment_windows, ['global' => [], 'male' => [], 'female' => []]);
+        $wasTasksEnabled = (bool) $course->is_tasks_enabled;
+        $previousWindows = $this->decodeJsonObject($course->assessment_windows, ['global' => [], 'male' => [], 'female' => []]);
 
         if (array_key_exists('title', $updates)) {
             $payload['title'] = trim((string) $updates['title']);
@@ -1229,7 +1507,6 @@ class CoreDataService
             $courseId,
             $payload,
             $updates,
-            $isTaskCourse,
             $wasTasksEnabled,
             $previousWindows,
             &$nextCourse,
@@ -1546,8 +1823,7 @@ class CoreDataService
         bool $isRequired,
         string $targetScope = 'all',
         ?string $courseId = null,
-    ): array
-    {
+    ): array {
         $prompt = trim($prompt);
         $type = $type === 'text' ? 'text' : 'rating';
         $targetScope = $targetScope === 'course' ? 'course' : 'all';
@@ -2259,16 +2535,20 @@ class CoreDataService
         $submissionId = (string) str()->uuid();
         $submittedAt = now();
 
-        // For task submissions, default manual_score to the full score (sum of question points).
         $defaultManualScore = null;
-        if ($assessmentType === 'tasks') {
-            $defaultManualScore = (float) DB::table('course_questions')
-                ->where('course_id', $courseId)
-                ->where('assessment_type', 'tasks')
-                ->sum('points');
-        }
 
         DB::transaction(function () use ($submissionId, $submittedAt, $courseId, $assessmentType, $studentId, $studentName, $loginId, $submission, $defaultManualScore) {
+            $alreadySubmitted = DB::table('course_submissions')
+                ->where('course_id', $courseId)
+                ->where('assessment_type', $assessmentType)
+                ->where('login_code', $loginId)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($alreadySubmitted) {
+                throw ValidationException::withMessages(['loginId' => 'تم إرسال هذا الاختبار مسبقًا، ولا يمكن إعادة الاختبار مرة أخرى.']);
+            }
+
             DB::table('course_submissions')->insert([
                 'id' => $submissionId,
                 'course_id' => $courseId,
@@ -2298,6 +2578,17 @@ class CoreDataService
                 DB::table('course_submission_answers')->insert($answers);
             }
         });
+
+        if ($assessmentType === 'tasks') {
+            $this->addNotification([
+                'title' => 'مهمة تحتاج مراجعة',
+                'message' => sprintf('%s انتهى من مهمة %s وتحتاج مراجعة للإتمام.', $studentName, $course->title ?? 'المهمة'),
+                'targetBranchId' => $student?->branch?->code,
+                'targetLoginIds' => [],
+                'createdByName' => 'النظام',
+                'createdByRole' => 'system',
+            ]);
+        }
 
         return [
             'id' => $submissionId,
@@ -2396,8 +2687,613 @@ class CoreDataService
         event(new DashboardNotificationDeleted($notificationId));
     }
 
+    private function purgeActiveDashboardData(): void
+    {
+        $activeStudentIds = DB::table('students')
+            ->when(Schema::hasColumn('students', 'archive_id'), fn ($query) => $query->whereNull('archive_id'))
+            ->pluck('id')
+            ->all();
+        $activeStudentLoginCodes = DB::table('students')
+            ->when(Schema::hasColumn('students', 'archive_id'), fn ($query) => $query->whereNull('archive_id'))
+            ->pluck('login_code')
+            ->all();
+        $activeReciterUserIds = DB::table('reciters')
+            ->when(Schema::hasColumn('reciters', 'archive_id'), fn ($query) => $query->whereNull('archive_id'))
+            ->pluck('user_id')
+            ->filter()
+            ->all();
+
+        foreach (TrainingMaterial::query()->with('media')->get() as $material) {
+            $material->clearMediaCollection('attachments');
+            $material->delete();
+        }
+
+        DB::table('reciter_students')->whereIn('student_id', $activeStudentIds)->delete();
+        DB::table('student_parts')->whereIn('student_id', $activeStudentIds)->delete();
+
+        foreach ([
+            'course_submission_answers',
+            'course_attendance',
+            'course_submissions',
+            'satisfaction_responses',
+            'final_exam_submission_answers',
+            'final_exam_submissions',
+            'course_questions',
+            'satisfaction_questions',
+            'final_exam_questions',
+            'courses',
+            'reciters',
+            'students',
+            'notifications',
+            'task_templates',
+            'role_permissions',
+        ] as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $query = DB::table($table);
+
+            if (Schema::hasColumn($table, 'archive_id')) {
+                $query->whereNull('archive_id');
+            }
+
+            $query->delete();
+        }
+
+        User::query()
+            ->where(function ($query) use ($activeStudentLoginCodes, $activeReciterUserIds): void {
+                $query->where(function ($studentQuery) use ($activeStudentLoginCodes): void {
+                    $studentQuery->whereIn('role', ['student', 'trainee'])
+                        ->whereIn('login_code', $activeStudentLoginCodes);
+                })->orWhere(function ($reciterQuery) use ($activeReciterUserIds): void {
+                    $reciterQuery->where('role', 'reciter')
+                        ->whereIn('id', $activeReciterUserIds);
+                });
+            })
+            ->delete();
+    }
+
+    private function restoreBranchesFromSnapshot(array $branches): void
+    {
+        $branches = $branches !== [] ? $branches : [
+            ['id' => 'male', 'label' => 'معلمين'],
+            ['id' => 'female', 'label' => 'معلمات'],
+        ];
+
+        foreach ($branches as $branch) {
+            $code = trim((string) ($branch['id'] ?? $branch['code'] ?? ''));
+            $label = trim((string) ($branch['label'] ?? $branch['name'] ?? $code));
+
+            if ($code === '') {
+                continue;
+            }
+
+            DB::table('branches')->updateOrInsert(
+                ['code' => $code],
+                [
+                    'id' => DB::table('branches')->where('code', $code)->value('id') ?: (string) Str::uuid(),
+                    'name' => $label !== '' ? $label : $code,
+                    'created_at' => DB::table('branches')->where('code', $code)->value('created_at') ?: now(),
+                ],
+            );
+        }
+    }
+
+    private function restoreStudentsFromSnapshot(array $students): array
+    {
+        $idMap = [];
+
+        foreach ($students as $student) {
+            $id = trim((string) ($student['id'] ?? '')) ?: (string) Str::uuid();
+            $loginCode = trim((string) ($student['loginId'] ?? $student['loginCode'] ?? ''));
+            $name = trim((string) ($student['name'] ?? ''));
+
+            if ($loginCode === '' || $name === '') {
+                continue;
+            }
+
+            $branch = $this->resolveBranchByCode((string) ($student['branchId'] ?? 'male'));
+            $createdAt = $this->restoreTimestamp($student['createdAt'] ?? null);
+
+            $user = User::query()->create([
+                'full_name' => $name,
+                'role' => 'student',
+                'login_code' => $loginCode,
+                'password' => Hash::make($loginCode),
+            ]);
+
+            DB::table('students')->insert([
+                'id' => $id,
+                'full_name' => $name,
+                'login_code' => $loginCode,
+                'branch_id' => $branch->id,
+                'note' => (string) ($student['note'] ?? ''),
+                'is_certified' => (bool) ($student['isCertified'] ?? false),
+                'created_by' => $user->id,
+                'created_at' => $createdAt,
+            ]);
+
+            foreach (collect($student['completedParts'] ?? [])->map(fn ($part) => (int) $part)->unique()->sort()->values() as $partNumber) {
+                if ($partNumber < 1 || $partNumber > ($branch->code === 'female' ? 10 : 30)) {
+                    continue;
+                }
+
+                DB::table('student_parts')->insert([
+                    'student_id' => $id,
+                    'part_number' => $partNumber,
+                    'marked_by_reciter_id' => null,
+                    'marked_at' => $createdAt,
+                ]);
+            }
+
+            $idMap[$student['id'] ?? $id] = $id;
+        }
+
+        return $idMap;
+    }
+
+    private function restoreRecitersFromSnapshot(array $reciters, array $studentIdMap): array
+    {
+        $idMap = [];
+
+        foreach ($reciters as $reciter) {
+            $id = trim((string) ($reciter['id'] ?? '')) ?: (string) Str::uuid();
+            $loginCode = trim((string) ($reciter['loginCode'] ?? ''));
+            $name = trim((string) ($reciter['name'] ?? ''));
+
+            if ($loginCode === '' || $name === '') {
+                continue;
+            }
+
+            $branch = $this->resolveBranchByCode((string) ($reciter['branchId'] ?? 'male'));
+            $user = User::query()->create([
+                'full_name' => $name,
+                'role' => 'reciter',
+                'login_code' => $loginCode,
+                'password' => Hash::make($loginCode),
+            ]);
+
+            DB::table('reciters')->insert([
+                'id' => $id,
+                'full_name' => $name,
+                'user_id' => $user->id,
+                'branch_id' => $branch->id,
+                'created_at' => now(),
+            ]);
+
+            foreach ($reciter['studentIds'] ?? [] as $studentId) {
+                $mappedStudentId = $studentIdMap[$studentId] ?? $studentId;
+
+                if (! DB::table('students')->where('id', $mappedStudentId)->exists()) {
+                    continue;
+                }
+
+                DB::table('reciter_students')->updateOrInsert([
+                    'reciter_id' => $id,
+                    'student_id' => $mappedStudentId,
+                ], [
+                    'created_at' => now(),
+                ]);
+            }
+
+            $idMap[$reciter['id'] ?? $id] = $id;
+        }
+
+        return $idMap;
+    }
+
+    private function restoreCoursesFromSnapshot(array $courses): array
+    {
+        $questionIds = [];
+
+        foreach ($courses as $course) {
+            $courseId = trim((string) ($course['id'] ?? '')) ?: (string) Str::uuid();
+            $createdAt = $this->restoreTimestamp($course['createdAt'] ?? null);
+
+            DB::table('courses')->insert([
+                'id' => $courseId,
+                'title' => trim((string) ($course['title'] ?? 'بدون عنوان')),
+                'entity_type' => ($course['entityType'] ?? 'course') === 'task' ? 'task' : 'course',
+                'task_mode' => $course['taskMode'] ?? null,
+                'task_template_id' => ($course['taskTemplateId'] ?? '') ?: null,
+                'task_template_name' => (string) ($course['taskTemplateName'] ?? ''),
+                'task_template_content' => (string) ($course['taskTemplateContent'] ?? ''),
+                'youtube_url' => (string) ($course['youtubeUrl'] ?? ''),
+                'task_description' => (string) ($course['taskDescription'] ?? ''),
+                'is_active' => (bool) ($course['isActive'] ?? false),
+                'is_pre_enabled' => (bool) ($course['isPreEnabled'] ?? true),
+                'is_post_enabled' => (bool) ($course['isPostEnabled'] ?? true),
+                'is_tasks_enabled' => (bool) ($course['isTasksEnabled'] ?? true),
+                'male_pre_enabled' => (bool) ($course['branchAvailability']['male']['pre'] ?? true),
+                'female_pre_enabled' => (bool) ($course['branchAvailability']['female']['pre'] ?? true),
+                'male_post_enabled' => (bool) ($course['branchAvailability']['male']['post'] ?? true),
+                'female_post_enabled' => (bool) ($course['branchAvailability']['female']['post'] ?? true),
+                'male_tasks_enabled' => (bool) ($course['branchAvailability']['male']['tasks'] ?? true),
+                'female_tasks_enabled' => (bool) ($course['branchAvailability']['female']['tasks'] ?? true),
+                'assessment_windows' => json_encode($course['assessmentWindows'] ?? ['global' => [], 'male' => [], 'female' => []], JSON_UNESCAPED_UNICODE),
+                'assessment_notification_templates' => json_encode($course['assessmentNotificationTemplates'] ?? ['pre' => '', 'post' => '', 'tasks' => ''], JSON_UNESCAPED_UNICODE),
+                'sort_order' => (int) ($course['sortOrder'] ?? 0),
+                'created_by' => auth()->id(),
+                'created_at' => $createdAt,
+            ]);
+
+            foreach (['pre' => 'preQuestions', 'post' => 'postQuestions', 'tasks' => 'taskQuestions'] as $assessmentType => $key) {
+                foreach (($course[$key] ?? []) as $index => $question) {
+                    $questionId = $this->restoreCourseQuestion($courseId, $assessmentType, $question, $index);
+                    $questionIds[$question['id'] ?? $questionId] = $questionId;
+                }
+            }
+        }
+
+        return $questionIds;
+    }
+
+    private function restoreCourseQuestion(string $courseId, string $assessmentType, array $question, int $index): string
+    {
+        $questionId = trim((string) ($question['id'] ?? '')) ?: (string) Str::uuid();
+        $type = ($question['type'] ?? 'multiple') === 'text' ? 'text' : 'multiple';
+        $options = ($question['type'] ?? 'multiple') === 'truefalse' ? ['صح', 'خطأ'] : ($question['options'] ?? []);
+
+        DB::table('course_questions')->insert([
+            'id' => $questionId,
+            'course_id' => $courseId,
+            'assessment_type' => $assessmentType,
+            'question_type' => $type,
+            'prompt' => trim((string) ($question['prompt'] ?? '')),
+            'options' => json_encode($options, JSON_UNESCAPED_UNICODE),
+            'allow_file' => (bool) ($question['allowFile'] ?? false),
+            'points' => (int) ($question['points'] ?? 1),
+            'correct_answer' => (string) ($question['correctAnswer'] ?? ''),
+            'attachment_name' => (string) ($question['attachmentName'] ?? ''),
+            'attachment_type' => (string) ($question['attachmentType'] ?? ''),
+            'attachment_data_url' => (string) ($question['attachmentDataUrl'] ?? ''),
+            'sort_order' => (int) ($question['sortOrder'] ?? $index),
+            'created_at' => $this->restoreTimestamp($question['createdAt'] ?? null),
+        ]);
+
+        return $questionId;
+    }
+
+    private function restoreTaskTemplatesFromSnapshot(array $templates): void
+    {
+        foreach ($templates as $template) {
+            DB::table('task_templates')->insert([
+                'id' => trim((string) ($template['id'] ?? '')) ?: (string) Str::uuid(),
+                'name' => trim((string) ($template['name'] ?? 'قالب مهمة')),
+                'content' => (string) ($template['content'] ?? ''),
+                'created_at' => $this->restoreTimestamp($template['createdAt'] ?? null),
+            ]);
+        }
+    }
+
+    private function restoreCourseSubmissionsFromSnapshot(array $submissions, array $questionIds): void
+    {
+        foreach ($submissions as $submission) {
+            $courseId = (string) ($submission['courseId'] ?? '');
+
+            if (! DB::table('courses')->where('id', $courseId)->exists()) {
+                continue;
+            }
+
+            $submissionId = trim((string) ($submission['id'] ?? '')) ?: (string) Str::uuid();
+            $loginCode = trim((string) ($submission['loginId'] ?? $submission['loginCode'] ?? ''));
+            $studentId = DB::table('students')->where('login_code', $loginCode)->value('id');
+
+            DB::table('course_submissions')->insert([
+                'id' => $submissionId,
+                'course_id' => $courseId,
+                'assessment_type' => (string) ($submission['assessmentType'] ?? 'pre'),
+                'student_id' => $studentId,
+                'student_name' => (string) ($submission['studentName'] ?? ''),
+                'login_code' => $loginCode,
+                'manual_score' => $submission['manualScore'] ?? null,
+                'submitted_at' => $this->restoreTimestamp($submission['submittedAt'] ?? null),
+            ]);
+
+            foreach ($submission['answers'] ?? [] as $answer) {
+                $questionId = $questionIds[$answer['questionId'] ?? ''] ?? ($answer['questionId'] ?? '');
+
+                if (! DB::table('course_questions')->where('id', $questionId)->exists()) {
+                    continue;
+                }
+
+                DB::table('course_submission_answers')->insert([
+                    'id' => (string) Str::uuid(),
+                    'submission_id' => $submissionId,
+                    'question_id' => $questionId,
+                    'answer_text' => (string) ($answer['value'] ?? ''),
+                    'file_name' => $answer['fileName'] ?? null,
+                    'file_type' => $answer['fileType'] ?? null,
+                    'file_data_url' => $answer['fileDataUrl'] ?? null,
+                    'created_at' => $this->restoreTimestamp($submission['submittedAt'] ?? null),
+                ]);
+            }
+        }
+    }
+
+    private function restoreAttendanceFromSnapshot(array $attendanceRows): void
+    {
+        foreach ($attendanceRows as $row) {
+            $courseId = (string) ($row['courseId'] ?? '');
+
+            if (! DB::table('courses')->where('id', $courseId)->exists()) {
+                continue;
+            }
+
+            $loginCode = trim((string) ($row['loginId'] ?? $row['loginCode'] ?? ''));
+
+            DB::table('course_attendance')->updateOrInsert([
+                'course_id' => $courseId,
+                'login_code' => $loginCode,
+                'source' => (string) ($row['source'] ?? 'post-test'),
+            ], [
+                'id' => trim((string) ($row['id'] ?? '')) ?: (string) Str::uuid(),
+                'student_id' => DB::table('students')->where('login_code', $loginCode)->value('id'),
+                'student_name' => (string) ($row['studentName'] ?? ''),
+                'created_at' => $this->restoreTimestamp($row['createdAt'] ?? null),
+            ]);
+        }
+    }
+
+    private function restoreNotificationsFromSnapshot(array $notifications): void
+    {
+        foreach ($notifications as $notification) {
+            DB::table('notifications')->insert([
+                'id' => trim((string) ($notification['id'] ?? '')) ?: (string) Str::uuid(),
+                'title' => trim((string) ($notification['title'] ?? 'إشعار')),
+                'message' => (string) ($notification['message'] ?? ''),
+                'target_branch_code' => $notification['targetBranchId'] ?? null,
+                'target_login_ids' => json_encode($notification['targetLoginIds'] ?? [], JSON_UNESCAPED_UNICODE),
+                'created_by_name' => $notification['createdByName'] ?? null,
+                'created_by_role' => $notification['createdByRole'] ?? null,
+                'created_at' => $this->restoreTimestamp($notification['createdAt'] ?? null),
+            ]);
+        }
+    }
+
+    private function restoreSatisfactionFromSnapshot(array $questions, array $responses): void
+    {
+        foreach ($questions as $index => $question) {
+            $courseId = $question['courseId'] ?? null;
+
+            DB::table('satisfaction_questions')->insert([
+                'id' => trim((string) ($question['id'] ?? '')) ?: (string) Str::uuid(),
+                'course_id' => $courseId !== '' ? $courseId : null,
+                'prompt' => trim((string) ($question['prompt'] ?? '')),
+                'type' => ($question['type'] ?? 'rating') === 'text' ? 'text' : 'rating',
+                'is_required' => (bool) ($question['isRequired'] ?? true),
+                'sort_order' => (int) ($question['sortOrder'] ?? $index),
+                'created_at' => $this->restoreTimestamp($question['createdAt'] ?? null),
+            ]);
+        }
+
+        foreach ($responses as $response) {
+            $courseId = (string) ($response['courseId'] ?? '');
+            $questionId = (string) ($response['questionId'] ?? '');
+
+            if (! DB::table('courses')->where('id', $courseId)->exists() || ! DB::table('satisfaction_questions')->where('id', $questionId)->exists()) {
+                continue;
+            }
+
+            DB::table('satisfaction_responses')->updateOrInsert([
+                'course_id' => $courseId,
+                'question_id' => $questionId,
+                'login_code' => (string) ($response['loginCode'] ?? ''),
+            ], [
+                'id' => trim((string) ($response['id'] ?? '')) ?: (string) Str::uuid(),
+                'student_name' => (string) ($response['studentName'] ?? ''),
+                'rating_value' => $response['ratingValue'] ?? null,
+                'text_value' => (string) ($response['textValue'] ?? ''),
+                'submitted_at' => $this->restoreTimestamp($response['submittedAt'] ?? null),
+            ]);
+        }
+    }
+
+    private function restoreFinalExamFromSnapshot(array $questions, array $submissions, array $settings): void
+    {
+        foreach (['male', 'female'] as $branchCode) {
+            $setting = $settings[$branchCode] ?? [];
+
+            DB::table('final_exam_settings')->updateOrInsert(
+                ['branch_code' => $branchCode],
+                [
+                    'is_enabled' => (bool) ($setting['isEnabled'] ?? false),
+                    'closes_at' => $setting['closesAt'] ?? null,
+                    'notification_template' => (string) ($setting['notificationTemplate'] ?? ''),
+                ],
+            );
+        }
+
+        foreach ($questions as $index => $question) {
+            $type = ($question['type'] ?? 'multiple') === 'text' ? 'text' : 'multiple';
+            $options = ($question['type'] ?? 'multiple') === 'truefalse' ? ['صح', 'خطأ'] : ($question['options'] ?? []);
+
+            DB::table('final_exam_questions')->insert([
+                'id' => trim((string) ($question['id'] ?? '')) ?: (string) Str::uuid(),
+                'branch_code' => $this->normalizeBranchCode((string) ($question['branchCode'] ?? 'male')),
+                'question_type' => $type,
+                'prompt' => trim((string) ($question['prompt'] ?? '')),
+                'options' => json_encode($options, JSON_UNESCAPED_UNICODE),
+                'allow_file' => (bool) ($question['allowFile'] ?? false),
+                'points' => (int) ($question['points'] ?? 1),
+                'correct_answer' => (string) ($question['correctAnswer'] ?? ''),
+                'attachment_name' => (string) ($question['attachmentName'] ?? ''),
+                'attachment_type' => (string) ($question['attachmentType'] ?? ''),
+                'attachment_data_url' => (string) ($question['attachmentDataUrl'] ?? ''),
+                'sort_order' => (int) ($question['sortOrder'] ?? $index),
+                'created_at' => $this->restoreTimestamp($question['createdAt'] ?? null),
+            ]);
+        }
+
+        foreach ($submissions as $submission) {
+            $submissionId = trim((string) ($submission['id'] ?? '')) ?: (string) Str::uuid();
+
+            DB::table('final_exam_submissions')->insert([
+                'id' => $submissionId,
+                'branch_code' => $this->normalizeBranchCode((string) ($submission['branchCode'] ?? 'male')),
+                'student_name' => (string) ($submission['studentName'] ?? ''),
+                'login_code' => (string) ($submission['loginCode'] ?? ''),
+                'manual_score' => $submission['manualScore'] ?? null,
+                'submitted_at' => $this->restoreTimestamp($submission['submittedAt'] ?? null),
+            ]);
+
+            foreach ($submission['answers'] ?? [] as $answer) {
+                $questionId = (string) ($answer['questionId'] ?? '');
+
+                if (! DB::table('final_exam_questions')->where('id', $questionId)->exists()) {
+                    continue;
+                }
+
+                DB::table('final_exam_submission_answers')->insert([
+                    'id' => (string) Str::uuid(),
+                    'submission_id' => $submissionId,
+                    'question_id' => $questionId,
+                    'answer_text' => (string) ($answer['value'] ?? ''),
+                    'file_name' => $answer['fileName'] ?? null,
+                    'file_type' => $answer['fileType'] ?? null,
+                    'file_data_url' => $answer['fileDataUrl'] ?? null,
+                ]);
+            }
+        }
+    }
+
+    private function restoreTrainingMaterialsFromSnapshot(array $materials, ?string $mediaRoot = null): void
+    {
+        foreach ($materials as $material) {
+            $externalAttachments = collect($material['attachments'] ?? [])
+                ->filter(fn (array $attachment) => ($attachment['type'] ?? '') === 'youtube' && trim((string) ($attachment['url'] ?? '')) !== '')
+                ->map(fn (array $attachment) => [
+                    'id' => (string) ($attachment['id'] ?? Str::uuid()),
+                    'label' => (string) ($attachment['displayName'] ?? $attachment['name'] ?? 'مقطع يوتيوب'),
+                    'url' => (string) ($attachment['url'] ?? ''),
+                ])
+                ->values()
+                ->all();
+
+            $materialModel = TrainingMaterial::query()->create([
+                'title' => trim((string) ($material['title'] ?? 'مادة تدريبية')),
+                'description' => (string) ($material['description'] ?? ''),
+                'target_branch_code' => $material['targetBranchId'] ?? null,
+                'external_attachments' => $externalAttachments,
+                'created_by' => auth()->id(),
+            ]);
+
+            $materialModel->forceFill([
+                'created_at' => now(),
+                'updated_at' => now(),
+            ])->save();
+
+            if ($mediaRoot === null) {
+                continue;
+            }
+
+            foreach ($material['attachments'] ?? [] as $attachment) {
+                if (($attachment['type'] ?? '') !== 'file') {
+                    continue;
+                }
+
+                $backupPath = trim((string) ($attachment['backupPath'] ?? ''));
+
+                if ($backupPath === '' || str_contains($backupPath, '..')) {
+                    continue;
+                }
+
+                $sourcePath = $mediaRoot.DIRECTORY_SEPARATOR.str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $backupPath);
+
+                if (! is_file($sourcePath)) {
+                    continue;
+                }
+
+                $displayName = (string) ($attachment['displayName'] ?? $attachment['name'] ?? basename($sourcePath));
+                $originalName = (string) ($attachment['originalName'] ?? basename($sourcePath));
+
+                $materialModel
+                    ->addMedia($sourcePath)
+                    ->preservingOriginal()
+                    ->usingName($displayName)
+                    ->usingFileName((string) ($attachment['name'] ?? basename($sourcePath)))
+                    ->withCustomProperties([
+                        'display_name' => $displayName,
+                        'original_client_name' => $originalName,
+                    ])
+                    ->toMediaCollection('attachments', 'public');
+            }
+        }
+    }
+
+    private function restoreRolePermissionsFromSnapshot(array $rolePermissions): void
+    {
+        foreach ($rolePermissions as $role => $permissions) {
+            if (! in_array($role, ['male_manager', 'female_manager'], true) || ! is_array($permissions)) {
+                continue;
+            }
+
+            foreach ($permissions as $permissionKey => $enabled) {
+                DB::table('role_permissions')->insert([
+                    'role' => $role,
+                    'permission_key' => (string) $permissionKey,
+                    'is_enabled' => (bool) $enabled,
+                ]);
+            }
+        }
+    }
+
+    private function attachTrainingMaterialMediaBackupPaths(array &$snapshot): array
+    {
+        $mediaIndex = [];
+        $materials = TrainingMaterial::query()->with('media')->get()->keyBy(fn (TrainingMaterial $material) => (string) $material->id);
+
+        foreach ($snapshot['trainingMaterials'] ?? [] as $materialIndex => $material) {
+            $materialModel = $materials->get((string) ($material['id'] ?? ''));
+
+            if (! $materialModel) {
+                continue;
+            }
+
+            $materialMedia = $materialModel->getMedia('attachments')
+                ->keyBy(fn ($media) => (string) ($media->uuid ?? $media->id));
+
+            foreach ($material['attachments'] ?? [] as $attachmentIndex => $attachment) {
+                if (($attachment['type'] ?? '') !== 'file') {
+                    continue;
+                }
+
+                $media = $materialMedia->get((string) ($attachment['id'] ?? ''));
+
+                if (! $media || ! is_file($media->getPath())) {
+                    continue;
+                }
+
+                $backupPath = 'media/training-materials/'
+                    .Str::slug((string) ($material['id'] ?? $materialIndex), '-')
+                    .'/'.Str::slug((string) ($attachment['id'] ?? $attachmentIndex), '-')
+                    .'/'.$media->file_name;
+
+                $snapshot['trainingMaterials'][$materialIndex]['attachments'][$attachmentIndex]['backupPath'] = $backupPath;
+                $mediaIndex[] = [
+                    'sourcePath' => $media->getPath(),
+                    'backupPath' => $backupPath,
+                ];
+            }
+        }
+
+        return $mediaIndex;
+    }
+
+    private function restoreTimestamp(mixed $value): Carbon
+    {
+        try {
+            return $value ? Carbon::parse((string) $value) : now();
+        } catch (\Throwable) {
+            return now();
+        }
+    }
+
     private function serializeTrainingMaterial(TrainingMaterial $material): array
     {
+        $basePath = trim((string) config('app.public_base_path', ''), '/');
+        $pathPrefix = $basePath === '' ? '' : '/'.$basePath;
         $fileAttachments = $material->getMedia('attachments')
             ->map(fn ($media) => [
                 'id' => $media->uuid ?? (string) $media->id,
@@ -2407,7 +3303,7 @@ class CoreDataService
                 'mimeType' => $media->mime_type,
                 'size' => (int) $media->size,
                 'type' => 'file',
-                'url' => request()->getSchemeAndHttpHost().'/api/public/training-material-attachments/'.($media->uuid ?? $media->id),
+                'url' => request()->getSchemeAndHttpHost().$pathPrefix.'/api/public/training-material-attachments/'.($media->uuid ?? $media->id),
             ]);
         $externalAttachments = collect($material->external_attachments ?? [])
             ->map(fn (array $attachment) => [
@@ -2483,7 +3379,7 @@ class CoreDataService
             : '';
     }
 
-    private function dispatchAssessmentOpenNotification(object|null $course, string $assessmentType, array $templates, array $windows): void
+    private function dispatchAssessmentOpenNotification(?object $course, string $assessmentType, array $templates, array $windows): void
     {
         if (! $course || ! in_array($assessmentType, ['pre', 'post', 'tasks'], true)) {
             return;

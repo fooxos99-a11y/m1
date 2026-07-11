@@ -1,8 +1,18 @@
 <template>
-  <label class="app-field" :class="{ 'app-field--error': error, 'app-field--disabled': disabled }">
-    <span v-if="label" class="app-field__label">{{ label }}</span>
+  <label
+    class="app-field"
+    :class="{ 'app-field--error': error, 'app-field--disabled': disabled }"
+  >
+    <span
+      v-if="label"
+      class="app-field__label"
+    >{{ label }}</span>
     <span class="app-field__control">
-      <v-icon v-if="prependIcon" size="20" class="app-field__icon">{{ prependIcon }}</v-icon>
+      <v-icon
+        v-if="prependIcon"
+        size="20"
+        class="app-field__icon"
+      >{{ prependIcon }}</v-icon>
       <textarea
         v-if="multiline"
         :value="value"
@@ -27,7 +37,10 @@
       >
       <slot name="append" />
     </span>
-    <span v-if="error || hint" class="app-field__message">{{ error || hint }}</span>
+    <span
+      v-if="error || hint"
+      class="app-field__message"
+    >{{ error || hint }}</span>
   </label>
 </template>
 

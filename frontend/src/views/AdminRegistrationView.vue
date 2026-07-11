@@ -6,7 +6,7 @@
     <RegistrationFieldsDialog
       v-model="fieldsDialogOpen"
       :fields="registrationFields"
-      :loading="fieldsSubmitting"
+      :loading="fieldsSubmitting || loading"
       @save="saveRegistrationFields"
     />
 
@@ -124,7 +124,7 @@
               >
                 {{ statusLabel(request.status) }}
               </span>
-              <button
+              <AppRawButton
                 v-if="request.status === 'pending' && selectedRequestId === request.id"
                 type="button"
                 class="registration-admin__request-close"
@@ -136,7 +136,7 @@
                 <v-icon small>
                   mdi-close
                 </v-icon>
-              </button>
+              </AppRawButton>
             </div>
 
             <template v-if="request.status !== 'accepted'">
@@ -193,6 +193,7 @@
 import { mapState } from 'vuex';
 import {
   AppButton,
+  AppRawButton,
 } from '../components/ui';
 import RegistrationFieldsDialog from '../components/RegistrationFieldsDialog.vue';
 import {
@@ -208,6 +209,7 @@ export default {
   name: 'AdminRegistrationView',
   components: {
     AppButton,
+    AppRawButton,
     RegistrationFieldsDialog,
   },
   props: {

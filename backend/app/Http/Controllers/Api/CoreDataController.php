@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\EditorAsset;
+use App\Models\Reciter;
 use App\Models\Student;
+use App\Models\TrainingMaterial;
 use App\Services\CoreDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,8 +17,55 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CoreDataController extends Controller
 {
-    public function __construct(private readonly CoreDataService $coreDataService)
+    private const EDITOR_IMAGE_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+    ];
+
+    private const TRAINING_ATTACHMENT_MIME_TYPES = [
+        'application/pdf',
+        'application/zip',
+        'application/x-zip-compressed',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'audio/mpeg',
+        'audio/wav',
+    ];
+
+    private const ANSWER_ATTACHMENT_MIME_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+    ];
+
+    private const MAX_ANSWER_DATA_URL_LENGTH = 28000000;
+
+    public function __construct(private readonly CoreDataService $coreDataService) {}
+
+    private function publicPathPrefix(): string
     {
+        $basePath = trim((string) config('app.public_base_path', ''), '/');
+
+        return $basePath === '' ? '' : '/'.$basePath;
     }
 
     public function listDashboardAccounts(): JsonResponse
@@ -52,7 +101,7 @@ class CoreDataController extends Controller
     public function storeEditorImage(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'image' => ['required', 'image', 'max:5120'],
+            'image' => ['required', 'file', 'mimetypes:'.implode(',', self::EDITOR_IMAGE_MIME_TYPES), 'max:5120'],
         ]);
 
         $editorAsset = EditorAsset::query()->create([
@@ -68,7 +117,7 @@ class CoreDataController extends Controller
         return response()->json([
             'id' => $media->uuid ?? (string) $media->id,
             'name' => $media->name,
-            'url' => $request->getSchemeAndHttpHost().'/storage/'.ltrim($media->getPathRelativeToRoot(), '/'),
+            'url' => $request->getSchemeAndHttpHost().$this->publicPathPrefix().'/storage/'.ltrim($media->getPathRelativeToRoot(), '/'),
         ], Response::HTTP_CREATED);
     }
 
@@ -95,7 +144,7 @@ class CoreDataController extends Controller
             })
             ->firstOrFail();
 
-        abort_unless($media->model_type === \App\Models\TrainingMaterial::class, 404);
+        abort_unless($media->model_type === TrainingMaterial::class, 404);
 
         return response()->file($media->getPath(), [
             'Content-Type' => $media->mime_type ?: 'application/octet-stream',
@@ -145,17 +194,20 @@ class CoreDataController extends Controller
     public function submitAssessment(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'courseId' => ['required', 'string'],
-            'assessmentType' => ['required', 'string'],
-            'studentName' => ['required', 'string'],
-            'loginId' => ['required', 'string'],
-            'answers' => ['required', 'array'],
-            'answers.*.questionId' => ['required', 'string'],
-            'answers.*.value' => ['nullable', 'string'],
-            'answers.*.fileName' => ['nullable', 'string'],
-            'answers.*.fileType' => ['nullable', 'string'],
+            'courseId' => ['required', 'string', 'max:100'],
+            'assessmentType' => ['required', 'string', 'in:pre,post,tasks'],
+            'studentName' => ['required', 'string', 'max:255'],
+            'loginId' => ['required', 'string', 'max:255'],
+            'answers' => ['required', 'array', 'max:500'],
+            'answers.*.questionId' => ['required', 'string', 'max:100'],
+            'answers.*.value' => ['nullable', 'string', 'max:20000'],
+            'answers.*.fileName' => ['nullable', 'string', 'max:255'],
+            'answers.*.fileType' => ['nullable', 'string', 'max:100'],
             'answers.*.fileDataUrl' => ['nullable', 'string'],
+            'answers.*.files' => ['prohibited'],
         ]);
+
+        $this->validateAnswerFilePayloads($data['answers']);
 
         if ($request->is('api/public/*')) {
             $this->assertAuthenticatedSubmitter($request, $data['loginId']);
@@ -170,19 +222,24 @@ class CoreDataController extends Controller
     public function bulkImportAssessments(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'courseId' => ['required', 'string'],
-            'assessmentType' => ['required', 'string'],
-            'submissions' => ['required', 'array'],
-            'submissions.*.studentName' => ['required', 'string'],
-            'submissions.*.loginId' => ['required', 'string'],
+            'courseId' => ['required', 'string', 'max:100'],
+            'assessmentType' => ['required', 'string', 'in:pre,post,tasks'],
+            'submissions' => ['required', 'array', 'max:1000'],
+            'submissions.*.studentName' => ['required', 'string', 'max:255'],
+            'submissions.*.loginId' => ['required', 'string', 'max:255'],
             'submissions.*.manualScore' => ['nullable', 'numeric'],
-            'submissions.*.answers' => ['required', 'array'],
-            'submissions.*.answers.*.questionId' => ['required', 'string'],
-            'submissions.*.answers.*.value' => ['nullable', 'string'],
-            'submissions.*.answers.*.fileName' => ['nullable', 'string'],
-            'submissions.*.answers.*.fileType' => ['nullable', 'string'],
+            'submissions.*.answers' => ['required', 'array', 'max:500'],
+            'submissions.*.answers.*.questionId' => ['required', 'string', 'max:100'],
+            'submissions.*.answers.*.value' => ['nullable', 'string', 'max:20000'],
+            'submissions.*.answers.*.fileName' => ['nullable', 'string', 'max:255'],
+            'submissions.*.answers.*.fileType' => ['nullable', 'string', 'max:100'],
             'submissions.*.answers.*.fileDataUrl' => ['nullable', 'string'],
+            'submissions.*.answers.*.files' => ['prohibited'],
         ]);
+
+        foreach ($data['submissions'] as $submissionIndex => $submission) {
+            $this->validateAnswerFilePayloads($submission['answers'] ?? [], "submissions.$submissionIndex.answers");
+        }
 
         return response()->json(
             $this->coreDataService->bulkImportAssessments($data['courseId'], $data['assessmentType'], $data['submissions']),
@@ -472,16 +529,19 @@ class CoreDataController extends Controller
     public function submitFinalExam(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'branchCode' => ['required', 'string'],
-            'studentName' => ['required', 'string'],
-            'loginCode' => ['required', 'string'],
-            'answers' => ['required', 'array'],
-            'answers.*.questionId' => ['required', 'string'],
-            'answers.*.value' => ['nullable', 'string'],
-            'answers.*.fileName' => ['nullable', 'string'],
-            'answers.*.fileType' => ['nullable', 'string'],
+            'branchCode' => ['required', 'string', 'in:male,female'],
+            'studentName' => ['required', 'string', 'max:255'],
+            'loginCode' => ['required', 'string', 'max:255'],
+            'answers' => ['required', 'array', 'max:500'],
+            'answers.*.questionId' => ['required', 'string', 'max:100'],
+            'answers.*.value' => ['nullable', 'string', 'max:20000'],
+            'answers.*.fileName' => ['nullable', 'string', 'max:255'],
+            'answers.*.fileType' => ['nullable', 'string', 'max:100'],
             'answers.*.fileDataUrl' => ['nullable', 'string'],
+            'answers.*.files' => ['prohibited'],
         ]);
+
+        $this->validateAnswerFilePayloads($data['answers']);
 
         if ($request->is('api/public/*')) {
             $this->assertAuthenticatedSubmitter($request, $data['loginCode']);
@@ -542,9 +602,9 @@ class CoreDataController extends Controller
     public function storeDashboardAccount(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string'],
-            'loginCode' => ['required', 'string'],
-            'role' => ['required', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'loginCode' => ['required', 'string', 'max:255'],
+            'role' => ['required', 'string', 'in:admin,male_manager,female_manager,student,reciter,trainee'],
         ]);
 
         $user = $this->coreDataService->createDashboardAccount($data['name'], $data['loginCode'], $data['role']);
@@ -564,11 +624,42 @@ class CoreDataController extends Controller
         return response()->json(status: 204);
     }
 
+    public function restoreDashboardBackup(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'snapshot' => ['required', 'array'],
+            'confirm' => ['accepted'],
+        ]);
+
+        return response()->json($this->coreDataService->restoreDashboardSnapshot($data['snapshot']));
+    }
+
+    public function exportDashboardBackup(): BinaryFileResponse
+    {
+        $path = storage_path('app/momars-backup-'.now()->format('Y-m-d-H-i-s').'.zip');
+
+        $this->coreDataService->createDashboardBackupZip($path);
+
+        return response()->download($path, basename($path), [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function restoreDashboardBackupFile(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'backup' => ['required', 'file', 'mimes:zip', 'max:512000'],
+            'confirm' => ['accepted'],
+        ]);
+
+        return response()->json($this->coreDataService->restoreDashboardBackupZip($data['backup']->getRealPath()));
+    }
+
     public function transferStudent(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'studentId' => ['required', 'string'],
-            'targetReciterId' => ['required', 'string'],
+            'studentId' => ['required', 'string', 'max:100'],
+            'targetReciterId' => ['required', 'string', 'max:100'],
         ]);
 
         $this->coreDataService->transferStudentToReciter($data['studentId'], $data['targetReciterId']);
@@ -674,11 +765,55 @@ class CoreDataController extends Controller
             'attachments.*.file' => [
                 'nullable',
                 'file',
+                'mimetypes:'.implode(',', self::TRAINING_ATTACHMENT_MIME_TYPES),
                 'max:20480',
             ],
             'files' => ['sometimes', 'array', 'min:1'],
-            'files.*' => ['file', 'max:20480'],
+            'files.*' => ['file', 'mimetypes:'.implode(',', self::TRAINING_ATTACHMENT_MIME_TYPES), 'max:20480'],
         ]);
+    }
+
+    private function validateAnswerFilePayloads(array $answers, string $rootKey = 'answers'): void
+    {
+        $errors = [];
+
+        foreach ($answers as $index => $answer) {
+            $fileDataUrl = trim((string) ($answer['fileDataUrl'] ?? ''));
+
+            if ($fileDataUrl === '') {
+                continue;
+            }
+
+            $fileType = strtolower(trim((string) ($answer['fileType'] ?? '')));
+            $field = "$rootKey.$index.fileDataUrl";
+
+            if (! in_array($fileType, self::ANSWER_ATTACHMENT_MIME_TYPES, true)) {
+                $errors[$field] = ['نوع المرفق غير مسموح.'];
+                continue;
+            }
+
+            if (strlen($fileDataUrl) > self::MAX_ANSWER_DATA_URL_LENGTH) {
+                $errors[$field] = ['حجم المرفق أكبر من الحد المسموح.'];
+                continue;
+            }
+
+            $expectedPrefix = 'data:'.$fileType.';base64,';
+
+            if (! str_starts_with(strtolower($fileDataUrl), $expectedPrefix)) {
+                $errors[$field] = ['صيغة المرفق غير صالحة.'];
+                continue;
+            }
+
+            $payload = substr($fileDataUrl, strlen($expectedPrefix));
+
+            if ($payload === '' || ! preg_match('/^[A-Za-z0-9+\/=\r\n]+$/', $payload) || base64_decode($payload, true) === false) {
+                $errors[$field] = ['بيانات المرفق غير صالحة.'];
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     private function extractTrainingMaterialAttachments(Request $request, bool $allowExistingAttachments = false): array
@@ -725,8 +860,8 @@ class CoreDataController extends Controller
     public function setRolePermission(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'role' => ['required', 'string'],
-            'key' => ['required', 'string'],
+            'role' => ['required', 'string', 'in:male_manager,female_manager'],
+            'key' => ['required', 'string', 'max:100'],
             'isEnabled' => ['required', 'boolean'],
         ]);
 
@@ -738,10 +873,10 @@ class CoreDataController extends Controller
     public function storeStudent(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string'],
-            'loginId' => ['required', 'string'],
-            'branchId' => ['required', 'string'],
-            'note' => ['nullable', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'loginId' => ['required', 'string', 'max:255'],
+            'branchId' => ['required', 'string', 'max:100'],
+            'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $student = $this->coreDataService->createStudent(
@@ -764,10 +899,10 @@ class CoreDataController extends Controller
     public function updateStudent(Request $request, Student $student): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['sometimes', 'string'],
-            'loginCode' => ['sometimes', 'string'],
-            'branchId' => ['sometimes', 'string'],
-            'note' => ['sometimes', 'string'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'loginCode' => ['sometimes', 'string', 'max:255'],
+            'branchId' => ['sometimes', 'string', 'max:100'],
+            'note' => ['sometimes', 'string', 'max:2000'],
             'isCertified' => ['sometimes', 'boolean'],
             'completedParts' => ['sometimes', 'array'],
             'completedParts.*' => ['integer', 'min:1', 'max:30'],
@@ -796,9 +931,11 @@ class CoreDataController extends Controller
     public function toggleStudentPart(Request $request, Student $student, int $partNumber): JsonResponse
     {
         $data = $request->validate([
-            'reciterId' => ['nullable', 'string'],
+            'reciterId' => ['nullable', 'string', 'max:100'],
             'shouldMarkComplete' => ['required', 'boolean'],
         ]);
+
+        $this->assertCanToggleStudentPart($request, $student, $data['reciterId'] ?? null);
 
         $this->coreDataService->toggleStudentPart($student->id, $data['reciterId'] ?? null, $partNumber, $data['shouldMarkComplete']);
 
@@ -808,12 +945,12 @@ class CoreDataController extends Controller
     public function storeReciter(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'currentLoginCode' => ['nullable', 'string'],
-            'name' => ['required', 'string'],
-            'loginCode' => ['required', 'string'],
-            'branchId' => ['required', 'string'],
+            'currentLoginCode' => ['nullable', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'loginCode' => ['required', 'string', 'max:255'],
+            'branchId' => ['required', 'string', 'max:100'],
             'linkedStudentIds' => ['sometimes', 'array'],
-            'linkedStudentIds.*' => ['string'],
+            'linkedStudentIds.*' => ['string', 'max:100'],
         ]);
 
         $reciter = $this->coreDataService->saveReciter(
@@ -833,8 +970,10 @@ class CoreDataController extends Controller
         ]);
     }
 
-    public function showReciterByLoginCode(string $loginCode): Response
+    public function showReciterByLoginCode(Request $request, string $loginCode): Response
     {
+        $this->assertCanViewReciterAccount($request, $loginCode);
+
         $payload = $this->coreDataService->getReciterAccountByLoginCode($loginCode);
 
         return $this->jsonOrNull($payload);
@@ -847,14 +986,88 @@ class CoreDataController extends Controller
         return response()->json(['id' => $reciterId]);
     }
 
-    public function getAssignedReciter(string $loginCode): Response
+    public function getAssignedReciter(Request $request, string $loginCode): Response
     {
+        $this->assertCanViewAssignedReciter($request, $loginCode);
+
         $payload = $this->coreDataService->getStudentAssignedReciterByLoginCode($loginCode);
 
         return $this->jsonOrNull($payload);
     }
 
-    private function jsonOrNull(array|null $payload): Response
+    private function assertCanViewReciterAccount(Request $request, string $loginCode): void
+    {
+        $user = $request->user();
+        $role = (string) ($user?->role ?? '');
+
+        if (in_array($role, ['admin', 'male_manager', 'female_manager'], true)) {
+            return;
+        }
+
+        if ($role === 'reciter' && trim((string) $user?->login_code) === trim($loginCode)) {
+            return;
+        }
+
+        abort(Response::HTTP_FORBIDDEN, 'غير مصرح لك بعرض بيانات هذا المقرئ.');
+    }
+
+    private function assertCanViewAssignedReciter(Request $request, string $loginCode): void
+    {
+        $user = $request->user();
+        $role = (string) ($user?->role ?? '');
+        $targetLoginCode = trim($loginCode);
+
+        if (in_array($role, ['admin', 'male_manager', 'female_manager'], true)) {
+            return;
+        }
+
+        if (in_array($role, ['student', 'trainee'], true) && trim((string) $user?->login_code) === $targetLoginCode) {
+            return;
+        }
+
+        if ($role === 'reciter') {
+            $reciter = Reciter::query()->where('user_id', $user?->getAuthIdentifier())->first();
+            $isLinked = $reciter && $reciter->students()->where('students.login_code', $targetLoginCode)->exists();
+
+            if ($isLinked) {
+                return;
+            }
+        }
+
+        abort(Response::HTTP_FORBIDDEN, 'غير مصرح لك بعرض بيانات ربط هذا الطالب.');
+    }
+
+    private function assertCanToggleStudentPart(Request $request, Student $student, ?string $reciterId): void
+    {
+        $user = $request->user();
+        $role = (string) ($user?->role ?? '');
+
+        if ($role === 'admin') {
+            return;
+        }
+
+        if (in_array($role, ['male_manager', 'female_manager'], true)) {
+            $permissions = $this->coreDataService->loadRolePermissions()[$role] ?? [];
+
+            if (($permissions['edit_student'] ?? false) === true) {
+                return;
+            }
+        }
+
+        if ($role === 'reciter') {
+            $reciter = Reciter::query()->where('user_id', $user?->getAuthIdentifier())->first();
+            $isSameReciter = $reciter && (! $reciterId || $reciter->id === $reciterId);
+            $isLinkedStudent = $reciter && $reciter->students()->whereKey($student->getKey())->exists();
+
+            if ($isSameReciter && $isLinkedStudent) {
+                return;
+            }
+        }
+
+        abort(Response::HTTP_FORBIDDEN, 'غير مصرح لك بتعديل أجزاء هذا الطالب.');
+    }
+
+    private function jsonOrNull(?array $payload): Response
     {
         if ($payload === null) {
             return response('null', 200, ['Content-Type' => 'application/json']);

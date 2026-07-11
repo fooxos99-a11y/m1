@@ -13,13 +13,12 @@
             واجهة المعلم
           </h1>
         </div>
-        <v-btn
-          text
-          color="primary"
+        <AppButton
+          variant="plain"
           :to="{ name: 'home' }"
         >
           الرئيسية
-        </v-btn>
+        </AppButton>
       </div>
 
       <v-row>
@@ -92,9 +91,13 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
+import { AppButton } from '../components/ui';
 
 export default {
   name: 'TraineeView',
+  components: {
+    AppButton,
+  },
   computed: {
     ...mapState(['dashboardSnapshot']),
     taskTemplates() {

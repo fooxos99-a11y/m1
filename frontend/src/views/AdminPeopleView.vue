@@ -47,13 +47,14 @@
       </div>
 
       <div class="people-toolbar__actions">
-        <button
+        <AppRawButton
+          v-if="canCreateAny"
           type="button"
           class="people-toolbar-button people-toolbar-button--primary"
           @click="openCreateDialog"
         >
           إضافة
-        </button>
+        </AppRawButton>
       </div>
     </section>
 
@@ -77,17 +78,18 @@
       >
         <div class="people-card__header">
           <div class="people-card__actions">
-            <button
-              v-if="!isReciterDirectoryMode"
+            <AppRawButton
+              v-if="!isReciterDirectoryMode && canEditStudent"
               type="button"
               class="people-card__badge"
               :class="person.isCertified ? 'people-card__badge--certified' : 'people-card__badge--pending'"
               @click.stop="toggleStudentCertified(person)"
             >
               {{ person.isCertified ? 'تم الاعتماد' : 'اعتماد مجاز' }}
-            </button>
+            </AppRawButton>
 
-            <button
+            <AppRawButton
+              v-if="canEditVisiblePeople"
               type="button"
               class="people-card__icon-button people-card__icon-button--edit"
               :aria-label="isReciterDirectoryMode ? 'تعديل المقرئ' : 'تعديل المعلم'"
@@ -96,9 +98,10 @@
               <v-icon small>
                 mdi-pencil-outline
               </v-icon>
-            </button>
+            </AppRawButton>
 
-            <button
+            <AppRawButton
+              v-if="canDeleteVisiblePeople"
               type="button"
               class="people-card__icon-button people-card__icon-button--delete"
               :aria-label="isReciterDirectoryMode ? 'حذف المقرئ' : 'حذف المعلم'"
@@ -108,22 +111,22 @@
                 class="fa-solid fa-trash-can app-action-icon app-action-icon--delete"
                 aria-hidden="true"
               />
-            </button>
+            </AppRawButton>
           </div>
 
           <div class="people-card__identity">
             <h3 class="people-card__name">
               {{ person.name }}
             </h3>
-            <button
-              v-if="!isReciterDirectoryMode"
+            <AppRawButton
+              v-if="!isReciterDirectoryMode && canAssignReciter"
               type="button"
               class="people-card__meta-button"
               :class="{ 'people-card__meta-button--unlinked': person.reciterName === 'غير مرتبط' }"
               @click.stop="openReciterAssignmentDialog(person)"
             >
               المقرئ: {{ person.reciterName }}
-            </button>
+            </AppRawButton>
             <div
               v-else
               class="people-card__meta"
@@ -174,14 +177,14 @@
       <div class="people-dialog people-parts-dialog">
         <AppDialogBody class="people-parts-dialog__body">
           <div class="people-parts-dialog__header">
-            <button
+            <AppRawButton
               type="button"
               class="people-parts-dialog__close-button"
               aria-label="إغلاق"
               @click="closePartsDialog"
             >
               ×
-            </button>
+            </AppRawButton>
 
             <div class="people-parts-dialog__title">
               الأجزاء المقروءة
@@ -194,7 +197,7 @@
           </div>
 
           <div class="people-parts-dialog__grid">
-            <button
+            <AppRawButton
               v-for="part in partsRange"
               :key="part"
               type="button"
@@ -205,7 +208,7 @@
               @click="toggleDialogPart(part)"
             >
               {{ part }}
-            </button>
+            </AppRawButton>
           </div>
         </AppDialogBody>
       </div>
@@ -327,7 +330,7 @@
             <label class="people-dialog__label">اختر النوع</label>
             <AppSelect
               v-model="manageEntityType"
-              :items="entityOptions"
+              :items="availableEntityOptions"
               item-text="label"
               item-value="value"
               dense
@@ -419,7 +422,7 @@
         >
           <template #actions>
             <AppButton
-              v-if="!isEditing"
+              v-if="!isEditing && dialogEntityType === 'student' && canAddStudent"
               variant="secondary"
               class="people-dialog__bulk-button"
               :disabled="bulkImporting"
@@ -430,7 +433,7 @@
             <input
               ref="bulkFileInput"
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.csv"
               class="people-dialog__bulk-input"
               @change="handleBulkFileChange"
             >
@@ -447,7 +450,7 @@
             <label class="people-dialog__label">اختر النوع</label>
             <AppSelect
               v-model="dialogEntityType"
-              :items="entityOptions"
+              :items="availableEntityOptions"
               item-text="label"
               item-value="value"
               dense
@@ -512,7 +515,7 @@
           >
             <label class="people-dialog__label">المعلمون المرتبطون (اختياري)</label>
             <div class="people-linked-students">
-              <button
+              <AppRawButton
                 v-for="student in linkedStudentOptions"
                 :key="student.value"
                 type="button"
@@ -522,7 +525,7 @@
               >
                 <span class="people-linked-students__mark" />
                 <span class="people-linked-students__name">{{ student.label }}</span>
-              </button>
+              </AppRawButton>
               <div
                 v-if="linkedStudentOptions.length === 0"
                 class="people-linked-students__empty"
@@ -568,11 +571,16 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
-import * as XLSX from 'xlsx';
-import { createStudent as createStudentRequest, saveReciter as saveReciterRequest, toggleStudentPart } from '../services/api';
+import ExcelJS from 'exceljs';
+import {
+  createStudent as createStudentRequest,
+  saveReciter as saveReciterRequest,
+  toggleStudentPart,
+  transferStudentToReciter,
+} from '../services/api';
 import {
   AppButton, AppDialog, AppDialogBody, AppDialogFooter, AppDialogHeader, AppSelect,
-  AppTextField,
+  AppRawButton, AppTextField,
 } from '../components/ui';
 
 const BULK_NAME_HEADER_KEYS = ['name', 'full name', 'student name', 'reciter name', 'الاسم', 'اسم', 'اسم المعلم', 'اسم المقرئ'];
@@ -619,6 +627,7 @@ export default {
     AppDialogHeader,
     AppDialogBody,
     AppDialogFooter,
+    AppRawButton,
     AppTextField,
   },
   props: {
@@ -669,10 +678,6 @@ export default {
         { label: 'الأقل إنجازًا', value: 'lowest-progress' },
         { label: 'المجازون', value: 'certified' },
       ],
-      entityOptions: [
-        { label: 'معلم/ة', value: 'student' },
-        { label: 'مقرئ', value: 'reciter' },
-      ],
       bulkImporting: false,
       bulkFilePickerOpen: false,
       bulkFilePickerResetTimer: null,
@@ -680,6 +685,51 @@ export default {
   },
   computed: {
     ...mapState(['currentUser', 'dashboardSnapshot', 'dashboardError']),
+    isAdmin() {
+      return this.currentUser?.role === 'admin';
+    },
+    managerPermissions() {
+      return this.dashboardSnapshot?.rolePermissions?.[this.currentUser?.role] || {};
+    },
+    canAddStudent() {
+      return this.hasPermission('add_student');
+    },
+    canEditStudent() {
+      return this.hasPermission('edit_student');
+    },
+    canDeleteStudent() {
+      return this.hasPermission('delete_student');
+    },
+    canAddReciter() {
+      return this.hasPermission('add_reciter');
+    },
+    canEditReciter() {
+      return this.hasPermission('edit_reciter');
+    },
+    canDeleteReciter() {
+      return this.hasPermission('delete_reciter');
+    },
+    canAssignReciter() {
+      return this.hasPermission('transfer_reciter_student') || this.canEditReciter;
+    },
+    canCreateAny() {
+      return this.canAddStudent || this.canAddReciter;
+    },
+    canEditVisiblePeople() {
+      return this.isReciterDirectoryMode ? this.canEditReciter : this.canEditStudent;
+    },
+    canDeleteVisiblePeople() {
+      return this.isReciterDirectoryMode ? this.canDeleteReciter : this.canDeleteStudent;
+    },
+    availableEntityOptions() {
+      return [
+        (this.canAddStudent || this.canEditStudent || this.canDeleteStudent) ? { label: 'معلم/ة', value: 'student' } : null,
+        (this.canAddReciter || this.canEditReciter || this.canDeleteReciter) ? { label: 'مقرئ', value: 'reciter' } : null,
+      ].filter(Boolean);
+    },
+    firstAvailableEntityType() {
+      return this.availableEntityOptions[0]?.value || 'student';
+    },
     managedBranchId() {
       if (this.currentUser?.role === 'male_manager') {
         return 'male';
@@ -716,7 +766,7 @@ export default {
       return this.baseFilterOptions;
     },
     canManageStudentParts() {
-      return ['admin', 'male_manager', 'female_manager', 'reciter'].includes(this.currentUser?.role);
+      return this.isAdmin || this.currentUser?.role === 'reciter' || this.canEditStudent;
     },
     branchFilterOptions() {
       if (this.managedBranchId) {
@@ -872,11 +922,11 @@ export default {
     },
     reciterAssignmentOptions() {
       if (!this.reciterDialogStudent) {
-        return [{ label: 'غير مرتبط', value: '' }];
+        return this.canEditReciter ? [{ label: 'غير مرتبط', value: '' }] : [];
       }
 
       return [
-        { label: 'غير مرتبط', value: '' },
+        this.canEditReciter ? { label: 'غير مرتبط', value: '' } : null,
         ...this.reciters
           .filter((reciter) => reciter.branchId === this.reciterDialogStudent.branchId)
           .map((reciter) => ({
@@ -884,7 +934,7 @@ export default {
             value: reciter.id,
           }))
           .sort((left, right) => left.label.localeCompare(right.label, 'ar')),
-      ];
+      ].filter(Boolean);
     },
     nonTaskCoursesCount() {
       return this.courses.filter((course) => course.entityType !== 'task').length || 0;
@@ -1055,6 +1105,13 @@ export default {
   },
   methods: {
     ...mapActions(['loadDashboardSnapshot', 'addStudent', 'updateStudent', 'saveReciter', 'deleteStudent', 'deleteReciter']),
+    hasPermission(key) {
+      if (this.isAdmin) {
+        return true;
+      }
+
+      return this.managerPermissions?.[key] === true;
+    },
     showTimedToast(type, message, options = {}) {
       if (this.activeToastTimer) {
         window.clearTimeout(this.activeToastTimer);
@@ -1085,6 +1142,10 @@ export default {
     },
     async submitManageDeleteWithSuccessFallback() {
       if (!this.managedTargetRecord || this.manageDialogSubmitting) {
+        return;
+      }
+
+      if ((this.manageEntityType === 'student' && !this.canDeleteStudent) || (this.manageEntityType === 'reciter' && !this.canDeleteReciter)) {
         return;
       }
 
@@ -1127,6 +1188,10 @@ export default {
       }
     },
     async toggleStudentCertified(student) {
+      if (!this.canEditStudent) {
+        return;
+      }
+
       try {
         await this.updateStudent({
           studentId: student.id,
@@ -1194,7 +1259,7 @@ export default {
       this.selectedStudentId = studentId;
     },
     openDeletePersonDialog(person) {
-      if (!person) {
+      if (!person || !this.canDeleteVisiblePeople) {
         return;
       }
 
@@ -1223,6 +1288,11 @@ export default {
 
       const person = this.deleteTarget;
       const isReciter = this.deleteTargetIsReciter;
+
+      if ((isReciter && !this.canDeleteReciter) || (!isReciter && !this.canDeleteStudent)) {
+        return;
+      }
+
       this.deleteDialogSubmitting = true;
 
       try {
@@ -1247,7 +1317,7 @@ export default {
       }
     },
     openReciterAssignmentDialog(student) {
-      if (!student) {
+      if (!student || !this.canAssignReciter) {
         return;
       }
 
@@ -1288,7 +1358,7 @@ export default {
       const currentReciter = this.assignedReciterRecord;
       const nextReciter = this.reciters.find((reciter) => reciter.id === this.reciterDialogReciterId) || null;
 
-      if (!student || this.reciterDialogSaving) {
+      if (!student || this.reciterDialogSaving || !this.canAssignReciter) {
         return;
       }
 
@@ -1301,7 +1371,9 @@ export default {
       this.reciterDialogSaving = true;
 
       try {
-        if (currentReciter) {
+        if (nextReciter) {
+          await transferStudentToReciter(student.id, nextReciter.id);
+        } else if (currentReciter && this.canEditReciter) {
           await this.saveReciter({
             currentLoginCode: currentReciter.loginCode,
             name: currentReciter.name,
@@ -1309,16 +1381,10 @@ export default {
             branchId: currentReciter.branchId,
             linkedStudentIds: (currentReciter.studentIds || []).filter((studentId) => studentId !== student.id),
           });
-        }
-
-        if (nextReciter) {
-          await this.saveReciter({
-            currentLoginCode: nextReciter.loginCode,
-            name: nextReciter.name,
-            loginCode: nextReciter.loginCode,
-            branchId: nextReciter.branchId,
-            linkedStudentIds: Array.from(new Set([...(nextReciter.studentIds || []), student.id])),
-          });
+        } else {
+          this.showTimedToast('error', 'لا توجد صلاحية لفك الربط بدون اختيار مقرئ بديل');
+          this.reciterDialogSaving = false;
+          return;
         }
 
         this.showTimedToast('success', nextReciter ? 'تم تحديث ربط المقرئ' : 'تم فك ربط المقرئ');
@@ -1365,12 +1431,12 @@ export default {
       this.reciterForm = emptyReciterForm();
       this.editingBranchId = '';
       this.editingTargetId = '';
-      this.dialogEntityType = 'student';
+      this.dialogEntityType = this.firstAvailableEntityType;
       this.isEditing = false;
       this.isDirectCardEdit = false;
     },
     resetManageDialog() {
-      this.manageEntityType = 'student';
+      this.manageEntityType = this.firstAvailableEntityType;
       this.manageBranchId = this.effectiveSelectedBranch === 'all' ? 'male' : this.effectiveSelectedBranch;
       this.manageTargetId = '';
       this.manageDialogSubmitting = false;
@@ -1402,13 +1468,22 @@ export default {
       };
     },
     openCreateDialog() {
+      if (!this.canCreateAny) {
+        return;
+      }
+
       this.resetForms();
+      this.dialogEntityType = this.canAddStudent ? 'student' : 'reciter';
       const initialBranchId = this.effectiveSelectedBranch === 'all' ? 'male' : this.effectiveSelectedBranch;
       this.studentForm.branchId = initialBranchId;
       this.reciterForm.branchId = initialBranchId;
       this.dialogOpen = true;
     },
     openManageDialog() {
+      if (!this.availableEntityOptions.length) {
+        return;
+      }
+
       this.resetManageDialog();
       this.manageDialogOpen = true;
     },
@@ -1424,6 +1499,10 @@ export default {
       this.dialogOpen = true;
     },
     openEditDialogFor(entityType, targetId, directCardEdit = true) {
+      if ((entityType === 'student' && !this.canEditStudent) || (entityType === 'reciter' && !this.canEditReciter)) {
+        return;
+      }
+
       this.resetForms();
       this.isEditing = true;
       this.isDirectCardEdit = directCardEdit;
@@ -1480,11 +1559,19 @@ export default {
         return;
       }
 
+      if ((this.manageEntityType === 'student' && !this.canEditStudent) || (this.manageEntityType === 'reciter' && !this.canEditReciter)) {
+        return;
+      }
+
       this.openEditDialogFor(this.manageEntityType, this.manageTargetId);
       this.closeManageDialog();
     },
     async submitManageDelete() {
       if (!this.managedTargetRecord || this.manageDialogSubmitting) {
+        return;
+      }
+
+      if ((this.manageEntityType === 'student' && !this.canDeleteStudent) || (this.manageEntityType === 'reciter' && !this.canDeleteReciter)) {
         return;
       }
 
@@ -1530,7 +1617,7 @@ export default {
       this.resetForms();
     },
     openBulkFilePicker() {
-      if (this.bulkImporting) {
+      if (this.bulkImporting || this.dialogEntityType !== 'student' || !this.canAddStudent) {
         return;
       }
 
@@ -1555,6 +1642,20 @@ export default {
       }
     },
     normalizeBulkCell(value) {
+      if (value && typeof value === 'object') {
+        if (Array.isArray(value.richText)) {
+          return value.richText.map((part) => part?.text || '').join('').trim();
+        }
+
+        if (value.text !== undefined) {
+          return String(value.text || '').trim();
+        }
+
+        if (value.result !== undefined) {
+          return String(value.result || '').trim();
+        }
+      }
+
       return String(value == null ? '' : value).trim();
     },
     findBulkHeaderIndex(headerRow, candidates) {
@@ -1569,21 +1670,76 @@ export default {
 
       return /^[A-Za-z0-9_-]{4,}$/.test(normalized) && /\d/.test(normalized);
     },
-    async parseBulkImportFile(file) {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
+    parseCsvRows(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
 
-      if (!firstSheetName) {
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        const nextChar = text[index + 1];
+
+        if (char === '"' && inQuotes && nextChar === '"') {
+          cell += '"';
+          index += 1;
+          continue;
+        }
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+
+        if (char === ',' && !inQuotes) {
+          row.push(cell);
+          cell = '';
+          continue;
+        }
+
+        if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && nextChar === '\n') {
+            index += 1;
+          }
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = '';
+          continue;
+        }
+
+        cell += char;
+      }
+
+      row.push(cell);
+      rows.push(row);
+
+      return rows;
+    },
+    async readBulkRows(file) {
+      const extension = (file.name || '').split('.').pop()?.toLowerCase();
+
+      if (extension === 'csv') {
+        return this.parseCsvRows(await file.text());
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const worksheet = workbook.worksheets[0];
+
+      if (!worksheet) {
         return [];
       }
 
-      const sheet = workbook.Sheets[firstSheetName];
-      const rawRows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        raw: false,
-        defval: '',
+      const rows = [];
+      worksheet.eachRow({ includeEmpty: false }, (row) => {
+        rows.push(row.values.slice(1));
       });
+
+      return rows;
+    },
+    async parseBulkImportFile(file) {
+      const rawRows = await this.readBulkRows(file);
 
       const rows = rawRows
         .map((row) => Array.isArray(row) ? row.map((cell) => this.normalizeBulkCell(cell)) : [])
@@ -1625,6 +1781,10 @@ export default {
         .filter((entry) => entry.name);
     },
     async handleBulkFileChange(event) {
+      if (this.dialogEntityType !== 'student' || !this.canAddStudent) {
+        return;
+      }
+
       const file = event?.target?.files?.[0];
 
       if (!file) {
@@ -1701,6 +1861,10 @@ export default {
       try {
         if (this.dialogEntityType === 'student') {
           if (this.isEditing) {
+            if (!this.canEditStudent) {
+              return;
+            }
+
             if (!this.editingStudentRecord) {
               this.showTimedToast('error', 'اختر المعلم أولًا');
               return;
@@ -1718,6 +1882,10 @@ export default {
             this.selectedStudentId = this.editingStudentRecord.id;
             this.showTimedToast('success', 'تم تحديث بيانات المعلم');
           } else {
+            if (!this.canAddStudent) {
+              return;
+            }
+
             await this.addStudent({
               name: this.studentForm.name,
               loginId: this.studentForm.loginId,
@@ -1729,6 +1897,10 @@ export default {
 
           await this.loadDashboardSnapshot();
         } else {
+          if ((this.isEditing && !this.canEditReciter) || (!this.isEditing && !this.canAddReciter)) {
+            return;
+          }
+
           if (this.isEditing && !this.editingReciterRecord) {
             this.showTimedToast('error', 'اختر المقرئ أولًا');
             return;

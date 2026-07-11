@@ -26,38 +26,31 @@
         </AppNativeSelect>
       </span>
       <span class="ql-formats">
-        <button
+        <AppRawButton
           class="ql-bold"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-italic"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-underline"
-          type="button"
         />
       </span>
       <span class="ql-formats">
-        <button
+        <AppRawButton
           class="ql-list"
           value="ordered"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-list"
           value="bullet"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-blockquote"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-table rich-text-editor__table-trigger"
           value="newtable_3_3"
-          type="button"
           title="إدراج جدول 3 × 3"
           aria-label="إدراج جدول 3 × 3"
         >
@@ -65,39 +58,33 @@
             class="rich-text-editor__table-trigger-icon"
             aria-hidden="true"
           >▦</span>
-        </button>
+        </AppRawButton>
       </span>
       <span class="ql-formats">
-        <button
+        <AppRawButton
           class="ql-indent"
           value="-1"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-indent"
           value="+1"
-          type="button"
         />
-        <button
+        <AppRawButton
           class="ql-link"
-          type="button"
         />
-        <button
+        <AppRawButton
           v-if="!lockImages"
           class="ql-image"
-          type="button"
         />
       </span>
       <span class="ql-formats">
-        <button
+        <AppRawButton
           class="ql-clean"
-          type="button"
         />
       </span>
       <span class="ql-formats">
-        <button
+        <AppRawButton
           class="ql-undo"
-          type="button"
           title="تراجع (Ctrl+Z)"
           aria-label="تراجع"
         >
@@ -122,7 +109,7 @@
               points="2,6 4,8.5 6.5,6.5"
             />
           </svg>
-        </button>
+        </AppRawButton>
       </span>
     </div>
 
@@ -130,7 +117,7 @@
       ref="imageInput"
       class="rich-text-editor__image-input"
       type="file"
-      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+      accept="image/png,image/jpeg,image/gif,image/webp"
       @change="handleImageSelection"
     >
 
@@ -154,10 +141,9 @@
         :style="selectedImageFrameStyle"
         @pointerdown.prevent="handleImageFramePointerDown"
       >
-        <button
+        <AppRawButton
           v-for="handle in imageHandles"
           :key="handle"
-          type="button"
           class="rich-text-editor__image-handle"
           :class="`rich-text-editor__image-handle--${handle}`"
           @pointerdown.prevent="startImageResize(handle, $event)"
@@ -169,16 +155,15 @@
         class="rich-text-editor__table-menu"
         :style="tableContextMenuStyle"
       >
-        <button
+        <AppRawButton
           v-for="action in tableContextActions"
           :key="action.value"
-          type="button"
           class="rich-text-editor__table-menu-item"
           :class="{ 'rich-text-editor__table-menu-item--danger': action.danger }"
           @click="handleTableContextAction(action.value)"
         >
           {{ action.label }}
-        </button>
+        </AppRawButton>
       </div>
       <div
         ref="editor"
@@ -195,6 +180,7 @@ import TableModule from 'quill1-table';
 import { uploadEditorImage } from '@/services/api';
 import { sanitizeRichTextHtml } from '@/utils/documentContent';
 import AppNativeSelect from './AppNativeSelect.vue';
+import { AppRawButton } from './ui';
 
 const FontFormat = Quill.import('formats/font');
 const Delta = Quill.import('delta');
@@ -386,6 +372,7 @@ export default {
   name: 'RichTextEditor',
   components: {
     AppNativeSelect,
+    AppRawButton,
   },
   props: {
     value: {

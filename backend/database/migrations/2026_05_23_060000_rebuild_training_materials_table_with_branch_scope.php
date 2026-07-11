@@ -8,28 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::dropIfExists('training_materials');
-
-        Schema::create('training_materials', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->text('description')->nullable();
-            $table->string('target_branch_code')->nullable()->index();
-            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-        });
+        if (! Schema::hasColumn('training_materials', 'target_branch_code')) {
+            Schema::table('training_materials', function (Blueprint $table) {
+                $table->string('target_branch_code')->nullable()->index()->after('description');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('training_materials');
-
-        Schema::create('training_materials', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('title');
-            $table->text('description')->nullable();
-            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-        });
+        // The target branch column is part of the base table definition now.
     }
 };

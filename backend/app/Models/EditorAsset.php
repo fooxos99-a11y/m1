@@ -36,7 +36,6 @@ class EditorAsset extends Model implements HasMedia
                 'image/png',
                 'image/gif',
                 'image/webp',
-                'image/svg+xml',
             ])
             ->useDisk('public');
     }

@@ -53,8 +53,8 @@
                 :key="indicatorCard.id"
                 class="satisfaction-admin__metric-card assessment-score-indicator"
               >
-                <button
-                  type="button"
+                <AppIconButton
+                  variant="plain"
                   class="satisfaction-admin__delete-indicator"
                   :disabled="deletingQuestionKey === indicatorCard.questionKey"
                   @click="deleteQuestionFromIndicator(indicatorCard)"
@@ -62,7 +62,7 @@
                   <v-icon small>
                     mdi-close
                   </v-icon>
-                </button>
+                </AppIconButton>
                 <div
                   class="assessment-score-indicator__ring"
                   :style="indicatorRingStyle(indicatorCard.progress)"
@@ -177,7 +177,7 @@
 <script>
 import { mapActions, mapState } from 'vuex';
 import {
-  AppButton, AppDialog, AppDialogFooter, AppDialogHeader, AppSelect, AppTextField,
+  AppButton, AppDialog, AppDialogFooter, AppDialogHeader, AppIconButton, AppSelect, AppTextField,
 } from '../components/ui';
 import indicatorAnimation from '../mixins/indicatorAnimation';
 
@@ -189,6 +189,7 @@ export default {
     AppSelect,
     AppDialogHeader,
     AppDialogFooter,
+    AppIconButton,
     AppTextField,
   },
   mixins: [indicatorAnimation],

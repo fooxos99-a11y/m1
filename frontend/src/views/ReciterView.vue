@@ -12,7 +12,7 @@
         </div>
 
         <img
-          src="/اللوقو-شفاف.png"
+          :src="$publicAsset('اللوقو-شفاف.png')"
           alt="شعار المنصة"
           class="reciter-hero__logo"
         >
@@ -87,17 +87,17 @@
               </div>
 
               <div class="reciter-parts__grid">
-                <button
+                <AppButton
                   v-for="part in visibleStudentParts(student)"
                   :key="`${student.id}-${part}`"
-                  type="button"
+                  variant="plain"
                   class="reciter-part-circle"
                   :class="{ 'reciter-part-circle--active': student.completedParts.includes(part) }"
                   :disabled="savingKey === `${student.id}:${part}`"
                   @click="togglePart(student, part)"
                 >
                   {{ part }}
-                </button>
+                </AppButton>
               </div>
             </div>
           </article>
@@ -109,10 +109,14 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
+import { AppButton } from '../components/ui';
 import { fetchReciterByLoginCode, toggleStudentPart } from '../services/api';
 
 export default {
   name: 'ReciterView',
+  components: {
+    AppButton,
+  },
   data() {
     return {
       reciterAccount: null,

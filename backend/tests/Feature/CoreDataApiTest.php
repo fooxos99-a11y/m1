@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EditorAsset;
+use App\Models\Reciter;
 use App\Models\Student;
 use App\Models\TrainingMaterial;
 use App\Models\User;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use ZipArchive;
 
 class CoreDataApiTest extends TestCase
 {
@@ -154,6 +156,34 @@ class CoreDataApiTest extends TestCase
         ]);
     }
 
+    public function test_editor_image_upload_rejects_svg(): void
+    {
+        Storage::fake('public');
+
+        $this->postJson('/api/dashboard/editor-images', [
+            'image' => UploadedFile::fake()->create('unsafe.svg', 4, 'image/svg+xml'),
+        ])->assertUnprocessable();
+    }
+
+    public function test_training_material_rejects_scriptable_attachment_types(): void
+    {
+        Storage::fake('public');
+
+        $this->post('/api/dashboard/training-materials', [
+            'title' => 'مادة غير آمنة',
+            'description' => '',
+            'branchId' => 'all',
+            'attachments' => [
+                [
+                    'label' => 'HTML',
+                    'file' => UploadedFile::fake()->create('unsafe.html', 4, 'text/html'),
+                ],
+            ],
+        ], [
+            'Accept' => 'application/json',
+        ])->assertUnprocessable();
+    }
+
     public function test_training_material_can_be_updated_with_attachment_add_remove_and_rename(): void
     {
         Storage::fake('public');
@@ -289,6 +319,269 @@ class CoreDataApiTest extends TestCase
 
         $this->assertDatabaseMissing('students', ['id' => $studentId]);
         $this->assertDatabaseMissing('users', ['login_code' => '7002', 'role' => 'student']);
+    }
+
+    public function test_dashboard_backup_restore_replaces_current_dashboard_data(): void
+    {
+        Storage::fake('public');
+
+        $studentResponse = $this->postJson('/api/students', [
+            'name' => 'Backup Student',
+            'loginId' => '7101',
+            'branchId' => 'male',
+        ])->assertCreated();
+        $studentId = $studentResponse->json('id');
+
+        $this->postJson('/api/reciters', [
+            'name' => 'Backup Reciter',
+            'loginCode' => '8101',
+            'branchId' => 'male',
+            'linkedStudentIds' => [$studentId],
+        ])->assertOk();
+
+        $this->post('/api/dashboard/training-materials', [
+            'title' => 'Backup Material',
+            'description' => 'Material file',
+            'branchId' => 'male',
+            'attachments' => [
+                [
+                    'label' => 'Backup PDF',
+                    'file' => UploadedFile::fake()->create('backup.pdf', 12, 'application/pdf'),
+                ],
+            ],
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $exportResponse = $this->get('/api/dashboard/backup/export');
+        $exportResponse->assertOk();
+        $zipPath = $exportResponse->baseResponse->getFile()->getPathname();
+
+        $this->postJson('/api/students', [
+            'name' => 'Temporary Student',
+            'loginId' => '7102',
+            'branchId' => 'female',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('students', ['login_code' => '7102']);
+
+        $this->post('/api/dashboard/backup/restore-file', [
+            'backup' => new UploadedFile($zipPath, 'backup.zip', 'application/zip', null, true),
+            'confirm' => true,
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertDatabaseHas('students', ['login_code' => '7101']);
+        $this->assertDatabaseMissing('students', ['login_code' => '7102']);
+        $this->assertDatabaseHas('training_materials', ['title' => 'Backup Material']);
+        $this->assertDatabaseHas('media', [
+            'model_type' => TrainingMaterial::class,
+            'collection_name' => 'attachments',
+        ]);
+
+        $restoredSnapshot = $this->getJson('/api/dashboard/snapshot')
+            ->assertOk()
+            ->json();
+        $restoredStudent = collect($restoredSnapshot['students'])->firstWhere('loginId', '7101');
+        $restoredReciter = collect($restoredSnapshot['reciters'])->firstWhere('loginCode', '8101');
+
+        $this->assertNotNull($restoredStudent);
+        $this->assertNotNull($restoredReciter);
+        $this->assertContains($restoredStudent['id'], $restoredReciter['studentIds']);
+    }
+
+    public function test_dashboard_backup_restore_rejects_unsafe_zip_paths(): void
+    {
+        $zipPath = storage_path('app/testing-malicious-backup.zip');
+        File::ensureDirectoryExists(dirname($zipPath));
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true);
+        $zip->addFromString('backup.json', json_encode(['students' => [], 'courses' => []]));
+        $zip->addFromString('../escaped.txt', 'owned');
+        $zip->close();
+
+        try {
+            $this->post('/api/dashboard/backup/restore-file', [
+                'backup' => new UploadedFile($zipPath, 'backup.zip', 'application/zip', null, true),
+                'confirm' => true,
+            ], ['Accept' => 'application/json'])->assertUnprocessable();
+
+            $this->assertFileDoesNotExist(storage_path('app/escaped.txt'));
+        } finally {
+            File::delete($zipPath);
+            File::delete(storage_path('app/escaped.txt'));
+        }
+    }
+
+    public function test_student_snapshot_is_limited_to_the_authenticated_student(): void
+    {
+        $branchId = DB::table('branches')->where('code', 'male')->value('id');
+
+        Student::query()->create([
+            'full_name' => 'Own Student',
+            'login_code' => '8101',
+            'branch_id' => $branchId,
+            'note' => 'own note',
+        ]);
+
+        Student::query()->create([
+            'full_name' => 'Other Student',
+            'login_code' => '8102',
+            'branch_id' => $branchId,
+            'note' => 'other note',
+        ]);
+
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'student',
+            'login_code' => '8101',
+        ]));
+
+        $this->getJson('/api/dashboard/snapshot')
+            ->assertOk()
+            ->assertJsonCount(1, 'students')
+            ->assertJsonPath('students.0.loginId', '8101')
+            ->assertJsonCount(0, 'reciters')
+            ->assertJsonCount(0, 'activityLogs')
+            ->assertJsonPath('rolePermissions', []);
+    }
+
+    public function test_student_cannot_use_admin_student_routes(): void
+    {
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'student',
+            'login_code' => '8103',
+        ]));
+
+        $this->postJson('/api/students', [
+            'name' => 'Blocked Student',
+            'loginId' => '8104',
+            'branchId' => 'male',
+        ])->assertForbidden();
+    }
+
+    public function test_reciter_can_only_view_and_update_linked_students(): void
+    {
+        $branchId = DB::table('branches')->where('code', 'male')->value('id');
+
+        $ownStudent = Student::query()->create([
+            'full_name' => 'Linked Student',
+            'login_code' => '8201',
+            'branch_id' => $branchId,
+            'note' => '',
+        ]);
+        $otherStudent = Student::query()->create([
+            'full_name' => 'Other Student',
+            'login_code' => '8202',
+            'branch_id' => $branchId,
+            'note' => '',
+        ]);
+
+        $ownUser = User::factory()->create(['role' => 'reciter', 'login_code' => '9301']);
+        $otherUser = User::factory()->create(['role' => 'reciter', 'login_code' => '9302']);
+        $ownReciter = Reciter::query()->create([
+            'full_name' => 'Own Reciter',
+            'user_id' => $ownUser->id,
+            'branch_id' => $branchId,
+        ]);
+        Reciter::query()->create([
+            'full_name' => 'Other Reciter',
+            'user_id' => $otherUser->id,
+            'branch_id' => $branchId,
+        ]);
+        $ownReciter->students()->attach($ownStudent->id);
+
+        Sanctum::actingAs($ownUser);
+
+        $this->getJson('/api/reciters/by-login/9302')->assertForbidden();
+
+        $this->putJson("/api/students/{$otherStudent->id}/parts/1", [
+            'reciterId' => $ownReciter->id,
+            'shouldMarkComplete' => true,
+        ])->assertForbidden();
+
+        $this->putJson("/api/students/{$ownStudent->id}/parts/1", [
+            'reciterId' => $ownReciter->id,
+            'shouldMarkComplete' => true,
+        ])->assertNoContent();
+    }
+
+    public function test_manager_without_student_permission_cannot_manage_students(): void
+    {
+        DB::table('role_permissions')->insert([
+            'role' => 'male_manager',
+            'permission_key' => 'page_results',
+            'is_enabled' => true,
+        ]);
+
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'male_manager',
+            'login_code' => '7001',
+        ]));
+
+        $this->postJson('/api/students', [
+            'name' => 'Blocked Student',
+            'loginId' => '8301',
+            'branchId' => 'male',
+        ])->assertForbidden();
+    }
+
+    public function test_admin_only_dashboard_pages_are_not_available_to_managers_by_api(): void
+    {
+        DB::table('role_permissions')->insert([
+            ['role' => 'male_manager', 'permission_key' => 'page_results', 'is_enabled' => true],
+            ['role' => 'male_manager', 'permission_key' => 'edit_student', 'is_enabled' => true],
+        ]);
+
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'male_manager',
+            'login_code' => '7003',
+        ]));
+
+        $this->putJson('/api/dashboard/home-page-content', [
+            'content' => ['hero' => ['title' => 'Blocked']],
+        ])->assertForbidden();
+
+        $this->putJson('/api/dashboard/practitioner-page-content', [
+            'content' => ['hero' => ['title' => 'Blocked']],
+        ])->assertForbidden();
+
+        $this->postJson('/api/dashboard/final-exam/questions', [
+            'branchCode' => 'male',
+            'prompt' => 'Blocked question',
+            'type' => 'text',
+            'allowFile' => false,
+            'points' => 1,
+            'correctAnswer' => 'answer',
+        ])->assertForbidden();
+
+        $this->postJson('/api/dashboard/satisfaction-questions', [
+            'prompt' => 'Blocked satisfaction',
+            'type' => 'rating',
+            'isRequired' => true,
+        ])->assertForbidden();
+    }
+
+    public function test_training_materials_require_notifications_permission(): void
+    {
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'male_manager',
+            'login_code' => '7004',
+        ]));
+
+        DB::table('role_permissions')->insert([
+            'role' => 'male_manager',
+            'permission_key' => 'page_activity_log',
+            'is_enabled' => true,
+        ]);
+
+        $this->getJson('/api/dashboard/training-materials')->assertForbidden();
+
+        DB::table('role_permissions')->where('role', 'male_manager')->delete();
+        DB::table('role_permissions')->insert([
+            'role' => 'male_manager',
+            'permission_key' => 'page_notifications',
+            'is_enabled' => true,
+        ]);
+
+        $this->getJson('/api/dashboard/training-materials')->assertOk();
     }
 
     public function test_reciter_flow_and_assigned_reciter_lookup_work(): void
@@ -1250,6 +1543,42 @@ class CoreDataApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('submissions.0.id', $submissionId)
             ->assertJsonPath('submissions.0.answers.0.questionId', $questionId);
+    }
+
+    public function test_assessment_submission_rejects_scriptable_file_data_url(): void
+    {
+        $this->postJson('/api/dashboard/assessment-submissions', [
+            'courseId' => 'missing-course',
+            'assessmentType' => 'pre',
+            'studentName' => 'Unsafe File Student',
+            'loginId' => '9910',
+            'answers' => [[
+                'questionId' => 'missing-question',
+                'value' => '',
+                'fileName' => 'unsafe.html',
+                'fileType' => 'text/html',
+                'fileDataUrl' => 'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+            ]],
+        ])->assertUnprocessable();
+    }
+
+    public function test_assessment_submission_rejects_unexpected_nested_file_payloads(): void
+    {
+        $this->postJson('/api/dashboard/assessment-submissions', [
+            'courseId' => 'missing-course',
+            'assessmentType' => 'pre',
+            'studentName' => 'Unsafe File Student',
+            'loginId' => '9911',
+            'answers' => [[
+                'questionId' => 'missing-question',
+                'value' => '',
+                'files' => [[
+                    'fileName' => 'unsafe.svg',
+                    'fileType' => 'image/svg+xml',
+                    'dataUrl' => 'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+',
+                ]],
+            ]],
+        ])->assertUnprocessable();
     }
 
     public function test_opening_assessments_tasks_and_final_exam_creates_notifications_from_saved_templates(): void

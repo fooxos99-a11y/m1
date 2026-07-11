@@ -19,7 +19,7 @@ const resolveApiBaseUrl = () => {
     const host = window.location.hostname || 'localhost';
     const isLocalHost = host === '127.0.0.1' || host === 'localhost';
 
-    if (isLocalHost && ['8080', '8081', '3000', '5173'].includes(window.location.port)) {
+    if (isLocalHost && window.location.port && !['8000', '8001'].includes(window.location.port)) {
       return `http://${host}:8001/api`;
     }
 
@@ -190,6 +190,36 @@ export const logout = async () => {
 
 export const fetchDashboardSnapshot = async () => {
   const response = await apiClient.get('/dashboard/snapshot');
+
+  return response.data;
+};
+
+export const restoreDashboardBackup = async (snapshot) => {
+  const response = await apiClient.post('/dashboard/backup/restore', {
+    snapshot,
+    confirm: true,
+  });
+
+  return response.data;
+};
+
+export const exportDashboardBackup = async () => {
+  const response = await apiClient.get('/dashboard/backup/export', {
+    responseType: 'blob',
+  });
+
+  return response;
+};
+
+export const restoreDashboardBackupFile = async (file) => {
+  const payload = new FormData();
+  payload.append('backup', file);
+  payload.append('confirm', '1');
+
+  const response = await apiClient.post('/dashboard/backup/restore-file', payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  });
 
   return response.data;
 };
@@ -459,6 +489,13 @@ export const saveReciter = async (payload) => {
   const response = await apiClient.post('/reciters', payload);
 
   return response.data;
+};
+
+export const transferStudentToReciter = async (studentId, targetReciterId) => {
+  await apiClient.post('/dashboard/transfer-student', {
+    studentId,
+    targetReciterId,
+  });
 };
 
 export const fetchReciterByLoginCode = async (loginCode) => {

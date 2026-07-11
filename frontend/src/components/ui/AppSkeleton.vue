@@ -1,5 +1,10 @@
 <template>
-  <div class="app-skeleton" :class="[`app-skeleton--${variant}`, { 'app-skeleton--animated': animated }]" :style="skeletonStyle" aria-hidden="true" />
+  <div
+    class="app-skeleton"
+    :class="[`app-skeleton--${variant}`, { 'app-skeleton--animated': animated }]"
+    :style="skeletonStyle"
+    aria-hidden="true"
+  />
 </template>
 
 <script>

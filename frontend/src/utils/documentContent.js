@@ -57,7 +57,8 @@ const ALLOWED_ATTRIBUTES = {
   '*': new Set(['class', 'style', 'dir']),
 };
 
-const SAFE_URL_PATTERN = /^(https?:|mailto:|tel:|data:image\/)/i;
+const SAFE_URL_PATTERN = /^(https?:|mailto:|tel:)/i;
+const SAFE_DATA_IMAGE_URL_PATTERN = /^data:image\/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i;
 const UNSAFE_STYLE_VALUE_PATTERN = /(expression\s*\(|javascript:|vbscript:|data:text\/html|url\s*\()/i;
 const ALLOWED_STYLE_PROPERTIES = new Set([
   'background',
@@ -113,7 +114,11 @@ const ALLOWED_STYLE_PROPERTIES = new Set([
   'word-break',
 ]);
 
-const isSafeUrl = (value) => SAFE_URL_PATTERN.test(String(value || '').trim());
+const isSafeUrl = (value) => {
+  const url = String(value || '').trim();
+
+  return SAFE_URL_PATTERN.test(url) || SAFE_DATA_IMAGE_URL_PATTERN.test(url);
+};
 
 const sanitizeStyleDeclaration = (value) => String(value || '')
   .split(';')

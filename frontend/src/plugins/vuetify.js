@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import Vuetify from 'vuetify';
+import ar from 'vuetify/es5/locale/ar';
 import '@mdi/font/css/materialdesignicons.css';
 import 'vuetify/dist/vuetify.min.css';
 
@@ -14,6 +15,12 @@ export default new Vuetify({
     current: 'ar',
     locales: {
       ar: {
+        ...ar,
+        input: {
+          ...ar.input,
+          appendAction: 'إجراء إضافي',
+          prependAction: 'إجراء إضافي',
+        },
         noDataText: 'لاتوجد بيانات',
       },
     },

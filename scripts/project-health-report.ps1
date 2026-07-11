@@ -200,7 +200,9 @@ else {
     Add-ListSection -Title 'Backend Tooling Check' -Lines @('PHP executable was not found. Backend tests were skipped.', 'Install PHP or set PHP_BIN before rerunning the report.')
 }
 
-$todoMatches = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -ErrorAction SilentlyContinue |
+$markerPattern = '\b(' + ('TO' + 'DO') + '|' + ('FIX' + 'ME') + '|' + ('HA' + 'CK') + ')\b'
+
+$markerMatches = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object {
         $_.FullName -notmatch '\\vendor\\' -and
         $_.FullName -notmatch '\\node_modules\\' -and
@@ -213,16 +215,16 @@ $todoMatches = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -ErrorAction 
         $_.Name -ne 'composer.lock' -and
         $_.Extension -in @('.php', '.js', '.vue', '.json', '.md', '.ps1')
     } |
-    Select-String -Pattern 'TODO|FIXME|HACK' -CaseSensitive:$false -ErrorAction SilentlyContinue |
+    Select-String -Pattern $markerPattern -CaseSensitive:$false -ErrorAction SilentlyContinue |
     Select-Object -First 200
 
-$todoLines = @()
-foreach ($match in $todoMatches) {
+$markerLines = @()
+foreach ($match in $markerMatches) {
     $relativePath = $match.Path.Replace($repoRoot + [System.IO.Path]::DirectorySeparatorChar, '')
-    $todoLines += ($relativePath + ':' + $match.LineNumber + ': ' + $match.Line.Trim())
+    $markerLines += ($relativePath + ':' + $match.LineNumber + ': ' + $match.Line.Trim())
 }
 
-Add-ListSection -Title 'TODO / FIXME / HACK Markers' -Lines $todoLines
+Add-ListSection -Title 'Maintenance Markers' -Lines $markerLines
 
 $largestFiles = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object {

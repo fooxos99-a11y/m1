@@ -1,25 +1,26 @@
 import Vue from 'vue';
 import Router from 'vue-router';
-import HomeView from '../views/HomeView.vue';
-import PractitionerView from '../views/PractitionerView.vue';
-import LoginView from '../views/LoginView.vue';
-import DashboardView from '../views/DashboardView.vue';
-import AdminPeopleView from '../views/AdminPeopleView.vue';
-import AdminCommunicationsView from '../views/AdminCommunicationsView.vue';
-import AdminResultsView from '../views/AdminResultsView.vue';
-import CourseView from '../views/CourseView.vue';
-import SatisfactionView from '../views/SatisfactionView.vue';
-import FinalExamView from '../views/FinalExamView.vue';
-import TasksView from '../views/TasksView.vue';
-import StudentView from '../views/StudentView.vue';
-import TraineeView from '../views/TraineeView.vue';
-import ReciterView from '../views/ReciterView.vue';
-import RegistrationView from '../views/RegistrationView.vue';
-import NotFoundView from '../views/NotFoundView.vue';
 import store from '../store';
 import { resolveUserHomeRoute } from '../utils/authRoutes';
 
 Vue.use(Router);
+
+const HomeView = () => import(/* webpackChunkName: "public-home" */ '../views/HomeView.vue');
+const PractitionerView = () => import(/* webpackChunkName: "public-practitioner" */ '../views/PractitionerView.vue');
+const LoginView = () => import(/* webpackChunkName: "auth" */ '../views/LoginView.vue');
+const DashboardView = () => import(/* webpackChunkName: "dashboard" */ '../views/DashboardView.vue');
+const AdminPeopleView = () => import(/* webpackChunkName: "dashboard-admin-people" */ '../views/AdminPeopleView.vue');
+const AdminCommunicationsView = () => import(/* webpackChunkName: "dashboard-admin-communications" */ '../views/AdminCommunicationsView.vue');
+const AdminResultsView = () => import(/* webpackChunkName: "dashboard-admin-results" */ '../views/AdminResultsView.vue');
+const CourseView = () => import(/* webpackChunkName: "course" */ '../views/CourseView.vue');
+const SatisfactionView = () => import(/* webpackChunkName: "satisfaction" */ '../views/SatisfactionView.vue');
+const FinalExamView = () => import(/* webpackChunkName: "final-exam" */ '../views/FinalExamView.vue');
+const TasksView = () => import(/* webpackChunkName: "tasks" */ '../views/TasksView.vue');
+const StudentView = () => import(/* webpackChunkName: "student" */ '../views/StudentView.vue');
+const TraineeView = () => import(/* webpackChunkName: "trainee" */ '../views/TraineeView.vue');
+const ReciterView = () => import(/* webpackChunkName: "reciter" */ '../views/ReciterView.vue');
+const RegistrationView = () => import(/* webpackChunkName: "registration" */ '../views/RegistrationView.vue');
+const NotFoundView = () => import(/* webpackChunkName: "not-found" */ '../views/NotFoundView.vue');
 
 const MANAGER_ROLES = ['male_manager', 'female_manager'];
 
@@ -120,6 +121,7 @@ const buildDashboardQuery = (panel, extras = {}) => {
 
 const router = new Router({
   mode: 'history',
+  base: process.env.VUE_APP_ROUTER_BASE || '/',
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
       return savedPosition;

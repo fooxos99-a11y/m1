@@ -12,6 +12,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Local archives and deployment bundles
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.sql.gz
+*.bak
+*.backup
+composer.phar
+*.lnk
+vendor_gen.php
+autoload_real_fixed.php
+project-health-report.txt
+MIGRATION_STATUS.md
+
 node_modules
 dist
 dist-ssr

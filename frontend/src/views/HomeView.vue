@@ -11,7 +11,7 @@
         >
           <div class="brand-mark__logos">
             <img
-              src="/شعار-الجمعية.png"
+              :src="$publicAsset('شعار-الجمعية.png')"
               alt="شعار الجمعية"
               class="site-logo"
               :class="{ 'site-logo--light': !scrolled }"
@@ -35,8 +35,8 @@
             content-class="licenses-menu"
           >
             <template #activator="{ on, attrs }">
-              <button
-                type="button"
+              <AppIconButton
+                variant="plain"
                 class="licenses-menu-toggle"
                 v-bind="attrs"
                 aria-label="البرامج والرخص"
@@ -50,7 +50,7 @@
                   <span class="licenses-menu-toggle__bar" />
                   <span class="licenses-menu-toggle__bar" />
                 </span>
-              </button>
+              </AppIconButton>
             </template>
             <v-list class="licenses-list">
               <v-list-item disabled>
@@ -102,7 +102,7 @@
           <div class="hero-copy hero-copy--licenses">
             <div class="hero-logos hero-logos--centered">
               <img
-                src="/شعار-الجمعية.png"
+                :src="$publicAsset('شعار-الجمعية.png')"
                 alt="شعار الجمعية"
                 class="hero-logo hero-logo--association hero-logo--hero-white"
               >
@@ -116,21 +116,21 @@
             </p>
 
             <div class="hero-actions">
-              <button
-                type="button"
+              <AppButton
+                variant="plain"
                 class="hero-primary-btn"
                 @click="scrollToSection('programs')"
               >
                 {{ homePageContent.heroPrimaryButtonLabel }}
-              </button>
+              </AppButton>
 
-              <button
-                type="button"
+              <AppButton
+                variant="plain"
                 class="hero-outline-btn hero-outline-btn--licenses"
                 @click="scrollToSection('achievements')"
               >
                 {{ homePageContent.heroSecondaryButtonLabel }}
-              </button>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -193,6 +193,7 @@
 
     <section
       id="programs"
+      ref="programsSection"
       class="landing-section programs-section"
     >
       <div class="landing-shell">
@@ -204,13 +205,16 @@
 
         <div class="programs-grid">
           <article
-            v-for="program in licensePrograms"
+            v-for="(program, index) in licensePrograms"
             :key="program.key"
             class="program-card"
             :class="{
               'program-card--poster-design': program.poster,
               'program-card--manager-design': program.key === 'manager',
               'program-card--practitioner-design': program.key === 'practitioner',
+              'program-card--from-right': index < 2,
+              'program-card--from-left': index >= 2,
+              'program-card--reveal-visible': programsRevealed,
             }"
             :style="program.posterVars || null"
           >
@@ -521,8 +525,8 @@
                 </li>
               </ul>
 
-              <button
-                type="button"
+              <AppButton
+                variant="plain"
                 class="program-card__action"
                 :style="program.available
                   ? { background: program.cardColor, borderColor: program.cardColor }
@@ -531,7 +535,7 @@
                 @click="openProgram(program)"
               >
                 {{ program.available ? homePageContent.programAvailableActionLabel : homePageContent.programUpcomingActionLabel }}
-              </button>
+              </AppButton>
             </div>
           </article>
         </div>
@@ -585,8 +589,16 @@
         <div>
           <h4>{{ homePageContent.footerAboutTitle }}</h4>
           <ul class="footer-links">
-            <li><a href="#">{{ homePageContent.footerHomeLabel }}</a></li>
-            <li><a href="#">{{ homePageContent.footerLicensesLabel }}</a></li>
+            <li>
+              <router-link :to="{ name: 'home' }">
+                {{ homePageContent.footerHomeLabel }}
+              </router-link>
+            </li>
+            <li>
+              <router-link :to="{ name: 'practitioner' }">
+                {{ homePageContent.footerLicensesLabel }}
+              </router-link>
+            </li>
           </ul>
         </div>
 
@@ -611,8 +623,8 @@
         <div>
           <h4>{{ homePageContent.footerPoliciesTitle }}</h4>
           <ul class="footer-links">
-            <li><a href="#">{{ homePageContent.footerPrivacyLabel }}</a></li>
-            <li><a href="#">{{ homePageContent.footerTermsLabel }}</a></li>
+            <li><span class="footer-links__muted">{{ homePageContent.footerPrivacyLabel }}</span></li>
+            <li><span class="footer-links__muted">{{ homePageContent.footerTermsLabel }}</span></li>
           </ul>
         </div>
       </div>
@@ -634,7 +646,7 @@
       <section class="login-modal__panel">
         <div class="login-modal__brand">
           <img
-            src="/شعار-الجمعية.png"
+            :src="$publicAsset('شعار-الجمعية.png')"
             alt="شعار الجمعية"
             class="login-modal__logo"
           >
@@ -726,8 +738,7 @@
 
 <script>
 import { mapActions, mapGetters, mapState } from 'vuex';
-import AppDialog from '../components/AppDialog.vue';
-import AppButton from '../components/AppButton.vue';
+import { AppButton, AppDialog, AppIconButton } from '../components/ui';
 import { fetchPublicSnapshot, fetchPublicStats } from '../services/api';
 import { resolveUserHomeLabel, resolveUserHomeRoute } from '../utils/authRoutes';
 import { normalizeHomePageContent } from '../utils/homePageContent';
@@ -883,6 +894,7 @@ export default {
   components: {
     AppDialog,
     AppButton,
+    AppIconButton,
   },
   data() {
     return {
@@ -912,6 +924,7 @@ export default {
       achievementAnimationStarted: false,
       achievementSectionVisible: false,
       achievementAnimationTimer: null,
+      programsRevealed: false,
       publicDataLoaded: false,
     };
   },
@@ -1026,7 +1039,7 @@ export default {
     },
     accountRoleLabel() {
       const labels = {
-        admin: 'مدير عام',
+        admin: 'مدير النمو المهني',
         male_manager: 'مشرف',
         female_manager: 'مشرفة',
         reciter: 'مقرئ',
@@ -1223,6 +1236,16 @@ export default {
     },
     handleScroll() {
       this.scrolled = window.scrollY > 20;
+      if (!this.programsRevealed) {
+        const programsSection = this.$refs.programsSection;
+
+        if (programsSection) {
+          const programBounds = programsSection.getBoundingClientRect();
+          const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+          this.programsRevealed = programBounds.top <= viewportHeight * 0.76 && programBounds.bottom >= viewportHeight * 0.16;
+        }
+      }
+
       if (!this.achievementAnimationStarted) {
         const section = this.$refs.achievementsSection;
 
@@ -1470,6 +1493,10 @@ export default {
   color: #08384a;
 }
 
+::v-deep(.licenses-menu) {
+  max-width: calc(100vw - 32px);
+}
+
 .license-item {
   border-radius: 8px;
   margin: 4px;
@@ -1579,15 +1606,50 @@ export default {
   overflow: hidden;
   background: #fff;
   box-shadow: 0 2px 16px rgba(8, 56, 74, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  opacity: 0;
+  transform: translateX(var(--program-card-reveal-offset, 0));
+  transition:
+    opacity 0.58s ease,
+    transform 0.58s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s ease;
   display: flex;
   flex-direction: column;
   border: 1px solid #e8f0f3;
 }
 
+.program-card--from-right {
+  --program-card-reveal-offset: 34px;
+}
+
+.program-card--from-left {
+  --program-card-reveal-offset: -34px;
+}
+
+.program-card--reveal-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.program-card--reveal-visible:nth-child(2) {
+  transition-delay: 0.08s;
+}
+
+.program-card--reveal-visible:nth-child(3) {
+  transition-delay: 0.14s;
+}
+
+.program-card--reveal-visible:nth-child(4) {
+  transition-delay: 0.2s;
+}
+
 .program-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 36px rgba(8, 56, 74, 0.13), 0 2px 8px rgba(0, 0, 0, 0.07);
+}
+
+.program-card--reveal-visible:hover {
+  transform: translateY(-4px);
+  transition-delay: 0s;
 }
 
 .program-card--poster-design {
@@ -1601,6 +1663,14 @@ export default {
 
 .program-card--poster-design:hover {
   transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .program-card {
+    opacity: 1;
+    transform: none;
+    transition: box-shadow 0.22s ease;
+  }
 }
 
 .manager-license-card__circle {
@@ -2433,6 +2503,13 @@ export default {
   color: #2a94b2;
 }
 
+.footer-links__muted {
+  color: #6b8791;
+  cursor: default;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 .footer-links--contact li {
   display: flex;
   align-items: center;
@@ -2544,6 +2621,13 @@ export default {
   .hero-actions {
     width: 100%;
     flex-direction: column;
+  }
+
+  ::v-deep(.licenses-menu) {
+    right: 16px !important;
+    left: auto !important;
+    width: min(330px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
   }
 
   .hero-primary-btn,

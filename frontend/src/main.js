@@ -55,6 +55,9 @@ Vue.prototype.$dropdownMenuProps = Object.freeze({
   closeOnContentClick: true,
 });
 
+const publicAssetBaseUrl = process.env.BASE_URL || '/';
+Vue.prototype.$publicAsset = (path) => `${publicAssetBaseUrl}${String(path || '').replace(/^\/+/, '')}`;
+
 new Vue({
   router,
   store,

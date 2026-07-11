@@ -17,22 +17,22 @@
             v-if="currentUser?.role === 'admin'"
             class="permissions-admin__section-switcher"
           >
-            <button
-              type="button"
+            <AppButton
+              variant="plain"
               class="permissions-admin__section-chip"
               :class="{ 'permissions-admin__section-chip--active': activeSection === 'permissions' }"
               @click="activeSection = 'permissions'"
             >
               الصلاحيات
-            </button>
-            <button
-              type="button"
+            </AppButton>
+            <AppButton
+              variant="plain"
               class="permissions-admin__section-chip"
               :class="{ 'permissions-admin__section-chip--active': activeSection === 'supervision' }"
               @click="activeSection = 'supervision'"
             >
               الإشراف
-            </button>
+            </AppButton>
           </div>
 
           <template v-if="activeSection === 'permissions'">
@@ -101,7 +101,7 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
-import { AppSelect } from '../components/ui';
+import { AppButton, AppSelect } from '../components/ui';
 import AdminSupervisionView from './AdminSupervisionView.vue';
 
 const PERMISSION_GROUPS = [
@@ -153,6 +153,7 @@ const PERMISSION_GROUPS = [
 export default {
   name: 'AdminPermissionsView',
   components: {
+    AppButton,
     AppSelect,
     AdminSupervisionView,
   },

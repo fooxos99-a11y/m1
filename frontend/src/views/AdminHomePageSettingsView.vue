@@ -76,17 +76,16 @@
               <div class="home-page-settings__card-title">
                 رابط التنقل {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف رابط التنقل"
                 @click="deleteItem('navItems', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <AppTextField
               v-model="item.label"
@@ -170,17 +169,16 @@
               <div class="home-page-settings__card-title">
                 هدف {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف الهدف"
                 @click="deleteItem('goals', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <v-textarea
               v-model="form.goals[index]"
@@ -292,17 +290,16 @@
               <div class="home-page-settings__card-title">
                 مجال {{ domainIndex + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف المجال"
                 @click="deleteItem('domains', domainIndex)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
 
             <div class="home-page-settings__grid">
@@ -354,17 +351,16 @@
               <div class="home-page-settings__card-title">
                 العنصر {{ item.num }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف العنصر"
                 @click="deleteItem('includesItems', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <AppTextField
               v-model="item.title"
@@ -409,17 +405,16 @@
               <div class="home-page-settings__card-title">
                 المتطلب {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف المتطلب"
                 @click="deleteItem('requirements', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <v-textarea
               v-model="form.requirements[index]"
@@ -442,17 +437,16 @@
               <div class="home-page-settings__card-title">
                 بطاقة العرض {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف بطاقة العرض"
                 @click="deleteItem('recitation', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <div class="home-page-settings__grid">
               <AppTextField
@@ -493,17 +487,16 @@
               <div class="home-page-settings__card-title">
                 بند آلية العرض {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف بند آلية العرض"
                 @click="deleteItem('recitationMechanismItems', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <v-textarea
               v-model="form.recitationMechanismItems[index]"
@@ -567,17 +560,16 @@
               <div class="home-page-settings__card-title">
                 بطاقة المدة {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف بطاقة المدة"
                 @click="deleteItem('durationQuickInfo', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <div class="home-page-settings__grid">
               <AppTextField
@@ -608,17 +600,16 @@
               <div class="home-page-settings__card-title">
                 تاريخ البداية {{ index + 1 }}
               </div>
-              <v-btn
-                icon
-                small
-                color="error"
+              <AppIconButton
+                variant="danger"
+                size="sm"
                 aria-label="حذف تاريخ البداية"
                 @click="deleteItem('startDates', index)"
               >
                 <v-icon small>
                   mdi-delete-outline
                 </v-icon>
-              </v-btn>
+              </AppIconButton>
             </div>
             <div class="home-page-settings__grid">
               <AppTextField
@@ -766,12 +757,42 @@
         حفظ نصوص رخصة ممارس
       </AppButton>
     </div>
+
+    <v-dialog
+      v-model="deleteDialogOpen"
+      max-width="440"
+    >
+      <div class="home-page-settings__confirm">
+        <h3 class="home-page-settings__confirm-title">
+          تأكيد الحذف
+        </h3>
+        <p class="home-page-settings__confirm-text">
+          سيتم حذف هذا المربع نهائيًا من الواجهة.
+        </p>
+        <div class="home-page-settings__confirm-actions">
+          <AppButton
+            variant="secondary"
+            :disabled="saving"
+            @click="closeDeleteDialog"
+          >
+            إلغاء
+          </AppButton>
+          <AppButton
+            variant="danger"
+            :loading="saving"
+            @click="confirmDeleteItem"
+          >
+            حذف
+          </AppButton>
+        </div>
+      </div>
+    </v-dialog>
   </div>
 </template>
 
 <script>
 import { mapActions, mapState } from 'vuex';
-import { AppButton, AppTextField } from '../components/ui';
+import { AppButton, AppIconButton, AppTextField } from '../components/ui';
 import { updatePractitionerPageContent } from '../services/api';
 import { clonePractitionerPageContent } from '../utils/practitionerPageContent';
 
@@ -779,6 +800,7 @@ export default {
   name: 'AdminHomePageSettingsView',
   components: {
     AppButton,
+    AppIconButton,
     AppTextField,
   },
   props: {
@@ -793,6 +815,8 @@ export default {
       saving: false,
       errorMessage: '',
       successMessage: '',
+      deleteDialogOpen: false,
+      pendingDeleteItem: null,
     };
   },
   computed: {
@@ -815,12 +839,35 @@ export default {
         return;
       }
 
-      if (!window.confirm('سيتم حذف هذا المربع نهائياً من الواجهة. هل تريد المتابعة؟')) {
+      this.pendingDeleteItem = { key, index };
+      this.deleteDialogOpen = true;
+    },
+    closeDeleteDialog() {
+      if (this.saving) {
         return;
       }
 
-      items.splice(index, 1);
+      this.deleteDialogOpen = false;
+      this.pendingDeleteItem = null;
+    },
+    async confirmDeleteItem() {
+      const target = this.pendingDeleteItem;
+
+      if (!target) {
+        return;
+      }
+
+      const items = this.form?.[target.key];
+
+      if (!Array.isArray(items) || target.index < 0 || target.index >= items.length) {
+        this.closeDeleteDialog();
+        return;
+      }
+
+      items.splice(target.index, 1);
       await this.saveContent();
+      this.deleteDialogOpen = false;
+      this.pendingDeleteItem = null;
     },
     async saveContent() {
       this.saving = true;
@@ -919,6 +966,36 @@ export default {
   justify-content: flex-start;
   direction: ltr;
   padding: 18px 24px;
+}
+
+.home-page-settings__confirm {
+  border-radius: 24px;
+  background: #fff;
+  padding: 24px;
+  direction: rtl;
+  text-align: right;
+}
+
+.home-page-settings__confirm-title {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.home-page-settings__confirm-text {
+  margin: 0;
+  color: #475569;
+  font-size: 0.96rem;
+  line-height: 1.8;
+}
+
+.home-page-settings__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 @media (max-width: 960px) {

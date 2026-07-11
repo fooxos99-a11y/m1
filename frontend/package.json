@@ -10,11 +10,10 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@mdi/font": "^7.4.47",
-    "@uppy/core": "^4.5.2",
-    "@uppy/dashboard": "^4.4.3",
     "axios": "^1.9.0",
     "chart.js": "^4.5.0",
     "core-js": "^3.43.0",
+    "exceljs": "^4.4.0",
     "laravel-echo": "^1.17.1",
     "momars-workspace": "file:..",
     "pusher-js": "^8.4.0",
@@ -25,8 +24,7 @@
     "vue-router": "^3.6.5",
     "vue-toastification": "^1.7.14",
     "vuetify": "^2.7.2",
-    "vuex": "^3.6.2",
-    "xlsx": "^0.18.5"
+    "vuex": "^3.6.2"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.8",
@@ -37,5 +35,11 @@
     "eslint": "^8.57.1",
     "eslint-plugin-vue": "^9.33.0",
     "vue-template-compiler": "^2.7.16"
+  },
+  "overrides": {
+    "cross-spawn": "^6.0.6",
+    "http-proxy-middleware": "^2.0.10",
+    "serialize-javascript": "^7.0.5",
+    "uuid": "^11.1.1"
   }
 }

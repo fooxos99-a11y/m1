@@ -64,6 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('accounts', [CoreDataController::class, 'listDashboardAccounts']);
             Route::post('accounts', [CoreDataController::class, 'storeDashboardAccount']);
             Route::delete('accounts/{accountId}', [CoreDataController::class, 'deleteDashboardAccount']);
+            Route::get('backup/export', [CoreDataController::class, 'exportDashboardBackup']);
+            Route::post('backup/restore', [CoreDataController::class, 'restoreDashboardBackup']);
+            Route::post('backup/restore-file', [CoreDataController::class, 'restoreDashboardBackupFile']);
             Route::post('transfer-student', [CoreDataController::class, 'transferStudent']);
             Route::post('activity-logs', [CoreDataController::class, 'storeActivityLog']);
             Route::get('notifications', [CoreDataController::class, 'notifications']);
@@ -97,16 +100,18 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('students')->group(function () {
-        Route::post('/', [CoreDataController::class, 'storeStudent']);
-        Route::put('{student}', [CoreDataController::class, 'updateStudent']);
-        Route::delete('{student}', [CoreDataController::class, 'deleteStudent']);
+        Route::middleware('dashboard.access')->group(function () {
+            Route::post('/', [CoreDataController::class, 'storeStudent']);
+            Route::put('{student}', [CoreDataController::class, 'updateStudent']);
+            Route::delete('{student}', [CoreDataController::class, 'deleteStudent']);
+        });
         Route::get('by-login/{loginCode}/assigned-reciter', [CoreDataController::class, 'getAssignedReciter']);
         Route::put('{student}/parts/{partNumber}', [CoreDataController::class, 'toggleStudentPart']);
     });
 
     Route::prefix('reciters')->group(function () {
-        Route::post('/', [CoreDataController::class, 'storeReciter']);
+        Route::post('/', [CoreDataController::class, 'storeReciter'])->middleware('dashboard.access');
         Route::get('by-login/{loginCode}', [CoreDataController::class, 'showReciterByLoginCode']);
-        Route::delete('by-login/{loginCode}', [CoreDataController::class, 'deleteReciterByLoginCode']);
+        Route::delete('by-login/{loginCode}', [CoreDataController::class, 'deleteReciterByLoginCode'])->middleware('dashboard.access');
     });
 });

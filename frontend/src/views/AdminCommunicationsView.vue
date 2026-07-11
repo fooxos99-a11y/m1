@@ -33,7 +33,7 @@
               />
             </div>
 
-            <button
+            <AppRawButton
               type="button"
               class="attendance-toggle communications-page__bulk-toggle"
               :class="{
@@ -46,7 +46,7 @@
               @click="toggleAllNotificationTargets"
             >
               <span class="attendance-toggle__dot" />
-            </button>
+            </AppRawButton>
           </div>
 
           <div class="prep-table-wrap communications-page__prep-table-wrap">
@@ -78,7 +78,7 @@
                     {{ student.value || '---' }}
                   </td>
                   <td class="prep-table__status">
-                    <button
+                    <AppRawButton
                       type="button"
                       class="attendance-toggle"
                       :class="{ 'attendance-toggle--active': notificationForm.targetLoginIds.includes(student.value) }"
@@ -86,7 +86,7 @@
                       @click.prevent="toggleNotificationTarget(student.value)"
                     >
                       <span class="attendance-toggle__dot" />
-                    </button>
+                    </AppRawButton>
                   </td>
                 </tr>
               </tbody>
@@ -193,13 +193,13 @@
                   <div class="communications-page__field-label">
                     المعلمون المستهدفون
                   </div>
-                  <button
+                  <AppRawButton
                     type="button"
                     class="communications-page__text-button"
                     @click="toggleAllNotificationTargets"
                   >
                     {{ allNotificationTargetStudentsSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
-                  </button>
+                  </AppRawButton>
                 </div>
 
                 <div class="communications-page__student-list">
@@ -209,7 +209,7 @@
                     class="communications-page__student-item"
                   >
                     <span class="communications-page__student-copy">{{ student.label }}</span>
-                    <button
+                    <AppRawButton
                       type="button"
                       class="communications-page__selector"
                       :class="{ 'communications-page__selector--active': notificationForm.targetLoginIds.includes(student.value) }"
@@ -346,13 +346,13 @@
                   {{ notifications.length }} إشعار
                 </div>
               </div>
-              <button
+              <AppRawButton
                 type="button"
                 class="communications-page__text-button"
                 @click="reloadNotifications"
               >
                 تحديث
-              </button>
+              </AppRawButton>
             </div>
 
             <div
@@ -371,13 +371,13 @@
                 class="communications-page__item-card"
               >
                 <div class="communications-page__item-head">
-                  <button
+                  <AppRawButton
                     type="button"
                     class="communications-page__danger-button"
                     @click="removeNotification(notification.id)"
                   >
                     حذف
-                  </button>
+                  </AppRawButton>
                   <div>
                     <div class="communications-page__item-title">
                       {{ notification.title }}
@@ -411,13 +411,13 @@
                   {{ activityLogs.length }} عملية
                 </div>
               </div>
-              <button
+              <AppRawButton
                 type="button"
                 class="communications-page__text-button"
                 @click="reloadActivityLogs"
               >
                 تحديث
-              </button>
+              </AppRawButton>
             </div>
 
             <div
@@ -474,7 +474,9 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
-import { AppButton, AppSelect, AppTextField } from '../components/ui';
+import {
+  AppButton, AppRawButton, AppSelect, AppTextField,
+} from '../components/ui';
 
 const emptyNotification = (currentUser) => ({
   title: '',
@@ -498,6 +500,7 @@ export default {
   name: 'AdminCommunicationsView',
   components: {
     AppButton,
+    AppRawButton,
     AppSelect,
     AppTextField,
   },

@@ -9,7 +9,7 @@
         class="dashboard-sidebar__brand"
       >
         <img
-          src="/اللوقو-شفاف.png"
+          :src="$publicAsset('اللوقو-شفاف.png')"
           alt="شعار البرنامج"
           class="dashboard-sidebar__logo"
         >
@@ -29,8 +29,8 @@
             :key="item.id"
             class="dashboard-nav__entry"
           >
-            <button
-              type="button"
+            <AppButton
+              variant="plain"
               class="dashboard-nav__item"
               :class="{ 'dashboard-nav__item--active': isMenuItemActive(item) }"
               :disabled="panelLoading"
@@ -51,23 +51,30 @@
                 v-if="item.id !== 'settings'"
                 class="dashboard-nav__dot"
               />
-            </button>
+            </AppButton>
 
             <div
               v-if="item.id === 'settings' && settingsMenuOpen && settingsItems.length"
               class="dashboard-subnav"
             >
-              <button
+              <AppButton
                 v-for="setting in settingsItems"
                 :key="setting.id"
-                type="button"
-                class="dashboard-subnav__item"
-                :class="{ 'dashboard-subnav__item--active': selectedSettingsItemId === setting.id && activeMenu === 'settings' }"
+                variant="plain"
+                class="dashboard-nav__item dashboard-subnav__item"
+                :class="{
+                  'dashboard-nav__item--active': selectedSettingsItemId === setting.id && activeMenu === 'settings',
+                  'dashboard-subnav__item--active': selectedSettingsItemId === setting.id && activeMenu === 'settings',
+                }"
                 :disabled="panelLoading"
                 @click="openSettingsItem(setting.id)"
               >
-                {{ setting.label }}
-              </button>
+                <span class="dashboard-nav__copy dashboard-subnav__copy">
+                  <span class="dashboard-nav__icon dashboard-subnav__icon"><v-icon small>{{ setting.icon }}</v-icon></span>
+                  <span class="dashboard-nav__label dashboard-subnav__label">{{ setting.label }}</span>
+                </span>
+                <span class="dashboard-nav__dot dashboard-subnav__dot" />
+              </AppButton>
             </div>
           </div>
         </template>
@@ -758,24 +765,25 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
-import AdminAssessmentView from './AdminAssessmentView.vue';
-import AdminTasksView from './AdminTasksView.vue';
-import AdminFinalExamView from './AdminFinalExamView.vue';
-import AdminPeopleView from './AdminPeopleView.vue';
-import AdminCommunicationsView from './AdminCommunicationsView.vue';
-import AdminTrainingMaterialsView from './AdminTrainingMaterialsView.vue';
-import AdminResultsView from './AdminResultsView.vue';
-import AdminSatisfactionView from './AdminSatisfactionView.vue';
-import AdminBackupView from './AdminBackupView.vue';
-import AdminPermissionsView from './AdminPermissionsView.vue';
-import AdminArchiveView from './AdminArchiveView.vue';
-import AdminSettingsView from './AdminSettingsView.vue';
 import {
   AppButton, AppChoiceButton, AppDialog, AppDialogFooter, AppIconButton, AppSelect,
   AppTextField,
 } from '../components/ui';
 import { buildProgramIndicators } from '../utils/programIndicators';
 import indicatorAnimation from '../mixins/indicatorAnimation';
+
+const AdminAssessmentView = () => import(/* webpackChunkName: "admin-assessment" */ './AdminAssessmentView.vue');
+const AdminTasksView = () => import(/* webpackChunkName: "admin-tasks" */ './AdminTasksView.vue');
+const AdminFinalExamView = () => import(/* webpackChunkName: "admin-final-exam" */ './AdminFinalExamView.vue');
+const AdminPeopleView = () => import(/* webpackChunkName: "admin-people" */ './AdminPeopleView.vue');
+const AdminCommunicationsView = () => import(/* webpackChunkName: "admin-communications" */ './AdminCommunicationsView.vue');
+const AdminTrainingMaterialsView = () => import(/* webpackChunkName: "admin-training-materials" */ './AdminTrainingMaterialsView.vue');
+const AdminResultsView = () => import(/* webpackChunkName: "admin-results" */ './AdminResultsView.vue');
+const AdminSatisfactionView = () => import(/* webpackChunkName: "admin-satisfaction" */ './AdminSatisfactionView.vue');
+const AdminBackupView = () => import(/* webpackChunkName: "admin-backup" */ './AdminBackupView.vue');
+const AdminPermissionsView = () => import(/* webpackChunkName: "admin-permissions" */ './AdminPermissionsView.vue');
+const AdminArchiveView = () => import(/* webpackChunkName: "admin-archive" */ './AdminArchiveView.vue');
+const AdminSettingsView = () => import(/* webpackChunkName: "admin-settings" */ './AdminSettingsView.vue');
 
 export default {
   name: 'DashboardView',
@@ -920,27 +928,48 @@ export default {
       const items = [];
 
       if (this.isAdmin) {
-        items.push({ id: 'home', label: 'صفحة رخصة ممارس', kind: 'panel' });
+        items.push({
+          id: 'home',
+          label: 'صفحة رخصة ممارس',
+          icon: 'mdi-page-layout-body',
+          kind: 'panel',
+        });
       }
 
       if (this.canAccessPanel('permissions')) {
         items.push({
           id: 'permissions',
           label: this.isAdmin ? 'الإشراف والصلاحيات' : 'الصلاحيات',
+          icon: 'mdi-shield-account-outline',
           kind: 'panel',
         });
       }
 
       if (this.canAccessPanel('archive')) {
-        items.push({ id: 'archive', label: 'الأرشيف', kind: 'panel' });
+        items.push({
+          id: 'archive',
+          label: 'الأرشيف',
+          icon: 'mdi-archive-outline',
+          kind: 'panel',
+        });
       }
 
       if (this.canAccessPanel('registration')) {
-        items.push({ id: 'registration', label: 'التسجيل', kind: 'panel' });
+        items.push({
+          id: 'registration',
+          label: 'التسجيل',
+          icon: 'mdi-account-plus-outline',
+          kind: 'panel',
+        });
       }
 
       if (this.isAdmin) {
-        items.push({ id: 'templates', label: 'القوالب', kind: 'panel' });
+        items.push({
+          id: 'templates',
+          label: 'القوالب',
+          icon: 'mdi-file-document-edit-outline',
+          kind: 'panel',
+        });
       }
 
       return items;
@@ -1110,7 +1139,7 @@ export default {
     },
     adminRoleOptions() {
       return [
-        { label: 'مدير عام', value: 'admin' },
+        { label: 'مدير النمو المهني', value: 'admin' },
         { label: 'مشرف', value: 'male_manager' },
         { label: 'مشرفة', value: 'female_manager' },
       ];
@@ -1895,8 +1924,6 @@ export default {
       }
     },
     async handleMenu(item) {
-      this.mobileMenuOpen = false;
-
       if (item.id === 'settings') {
         this.settingsMenuOpen = !this.settingsMenuOpen;
 
@@ -1914,9 +1941,8 @@ export default {
         return;
       }
 
-      if (item.id !== 'settings') {
-        this.settingsMenuOpen = false;
-      }
+      this.mobileMenuOpen = false;
+      this.settingsMenuOpen = false;
 
       if (item.id === 'backup') {
         this.backupDialogOpen = true;
@@ -1982,8 +2008,10 @@ export default {
             || this.hasPermission('edit_reciter')
             || this.hasPermission('transfer_reciter_student');
         case 'notifications':
-        case 'materials':
           return this.hasPermission('page_notifications') || this.hasPermission('page_activity_log');
+        case 'materials':
+          return this.hasPermission('page_notifications');
+        case 'archive':
         case 'backup':
           return this.hasPermission('backup_export') || this.hasPermission('backup_import') || this.hasPermission('backup_restore');
         case 'registration':
@@ -2006,7 +2034,7 @@ export default {
     },
     roleLabel(role) {
       return {
-        admin: 'مدير عام',
+        admin: 'مدير النمو المهني',
         male_manager: 'مشرف',
         female_manager: 'مشرفة',
       }[role] || role;
@@ -2207,6 +2235,11 @@ export default {
   background: rgba(16, 118, 153, 0.06);
 }
 
+.dashboard-nav__item :deep(.app-button__content) {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .dashboard-nav__icon {
   display: inline-flex;
   align-items: center;
@@ -2263,21 +2296,33 @@ export default {
 .dashboard-subnav {
   display: grid;
   gap: 6px;
-  padding: 0 0 4px 0;
+  padding: 0 12px 4px 0;
 }
 
 .dashboard-subnav__item {
-  width: 100%;
-  border: 0;
-  border-radius: 16px;
-  padding: 11px 28px 11px 54px;
-  background: transparent;
-  color: #5d7285;
-  text-align: right;
+  padding: 12px 18px 12px 48px;
+  color: #426174;
   font-size: 0.94rem;
+}
+
+.dashboard-subnav__copy {
+  gap: 12px;
+}
+
+.dashboard-subnav__icon {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  color: #27819d;
+}
+
+.dashboard-subnav__icon :deep(.v-icon) {
+  font-size: 20px !important;
+}
+
+.dashboard-subnav__label {
+  font-size: 0.96rem;
   font-weight: 800;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .dashboard-subnav__item:hover,
@@ -2295,6 +2340,16 @@ export default {
   height: 14px;
   border-radius: 50%;
   background: #cfe3e8;
+}
+
+.dashboard-nav__dot.dashboard-subnav__dot {
+  width: 10px;
+  height: 10px;
+  background: #d8e9ee;
+}
+
+.dashboard-subnav__item--active .dashboard-subnav__dot {
+  background: #107699;
 }
 
 .dashboard-main {

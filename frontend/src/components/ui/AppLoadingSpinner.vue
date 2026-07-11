@@ -1,7 +1,18 @@
 <template>
-  <span class="app-spinner" :class="`app-spinner--${size}`" role="status" :aria-label="label">
-    <span class="app-spinner__ring" aria-hidden="true" />
-    <span v-if="showLabel" class="app-spinner__label">{{ label }}</span>
+  <span
+    class="app-spinner"
+    :class="`app-spinner--${size}`"
+    role="status"
+    :aria-label="label"
+  >
+    <span
+      class="app-spinner__ring"
+      aria-hidden="true"
+    />
+    <span
+      v-if="showLabel"
+      class="app-spinner__label"
+    >{{ label }}</span>
   </span>
 </template>
 

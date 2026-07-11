@@ -12,7 +12,7 @@
         </div>
 
         <div class="backup-dialog-card__body">
-          <button
+          <AppRawButton
             type="button"
             class="backup-dialog-card__action backup-dialog-card__action--primary"
             @click="downloadCurrentSnapshot"
@@ -21,9 +21,9 @@
             <v-icon small>
               mdi-download
             </v-icon>
-          </button>
+          </AppRawButton>
 
-          <button
+          <AppRawButton
             type="button"
             class="backup-dialog-card__action backup-dialog-card__action--secondary"
             @click="openFilePicker"
@@ -32,9 +32,9 @@
             <v-icon small>
               mdi-file-upload-outline
             </v-icon>
-          </button>
+          </AppRawButton>
 
-          <button
+          <AppRawButton
             type="button"
             class="backup-dialog-card__action backup-dialog-card__action--danger"
             :disabled="!importedBackup && !importedFileName"
@@ -44,7 +44,19 @@
             <v-icon small>
               mdi-delete-outline
             </v-icon>
-          </button>
+          </AppRawButton>
+
+          <AppRawButton
+            type="button"
+            class="backup-dialog-card__action backup-dialog-card__action--restore"
+            :disabled="!canRestoreBackup"
+            @click="openRestoreDialog"
+          >
+            <span>استرجاع</span>
+            <v-icon small>
+              mdi-restore
+            </v-icon>
+          </AppRawButton>
 
           <div
             v-if="importedFileName"
@@ -63,20 +75,20 @@
           <input
             ref="fileInput"
             type="file"
-            accept="application/json,.json"
+            accept="application/zip,.zip,application/json,.json"
             class="backup-page__file-input"
             @change="handleBackupFileSelect"
           >
         </div>
 
         <div class="backup-dialog-card__footer">
-          <button
+          <AppRawButton
             type="button"
             class="backup-dialog-card__close"
             @click="$emit('close')"
           >
             إغلاق
-          </button>
+          </AppRawButton>
         </div>
       </div>
     </template>
@@ -113,13 +125,13 @@
           <p class="backup-page__action-text">
             يتم تنزيل Snapshot كامل بصيغة JSON من البيانات الحالية المعروضة في لوحة التحكم.
           </p>
-          <button
+          <AppRawButton
             type="button"
             class="backup-page__primary-button"
             @click="downloadCurrentSnapshot"
           >
             تصدير النسخة الحالية
-          </button>
+          </AppRawButton>
         </article>
 
         <article class="backup-page__action-card">
@@ -133,19 +145,19 @@
             اختر ملف JSON مُصدّر سابقًا لمراجعة الفروقات بين النسخة الحالية والنسخة المرفوعة.
           </p>
           <div class="backup-page__action-row">
-            <button
+            <AppRawButton
               type="button"
               class="backup-page__primary-button"
               @click="openFilePicker"
             >
               اختيار الملف
-            </button>
+            </AppRawButton>
             <span class="backup-page__file-name">{{ importedFileName || 'لم يتم اختيار ملف بعد' }}</span>
           </div>
           <input
             ref="fileInput"
             type="file"
-            accept="application/json,.json"
+            accept="application/zip,.zip,application/json,.json"
             class="backup-page__file-input"
             @change="handleBackupFileSelect"
           >
@@ -201,12 +213,12 @@
           </div>
 
           <div
-            v-if="!importedBackup"
+            v-if="!importedBackup && !importedBackupFile"
             class="backup-page__empty"
           >
             ارفع ملف نسخة احتياطية لعرض المقارنة التفصيلية.
           </div>
-          <template v-else>
+          <template v-else-if="importedBackup">
             <div class="backup-page__import-note">
               <div>الملف: {{ importedFileName }}</div>
               <div>السجلات المقارنة: {{ comparisonRows.length }}</div>
@@ -237,17 +249,79 @@
             </div>
 
             <div class="backup-page__restore-note">
-              الاسترجاع الحرفي غير مفعل بعد في هذه النسخة لأن المشروع الحالي لا يملك endpoint خاصًا بإعادة ضخ Snapshot كامل داخل قاعدة البيانات.
+              سيستبدل الاسترجاع البيانات الحالية ببيانات النسخة المرفوعة. ملفات المواد التدريبية المرفوعة كملفات لا تُضمّن داخل JSON، أما روابط يوتيوب فتُستعاد.
             </div>
+
+            <AppRawButton
+              type="button"
+              class="backup-page__danger-button"
+              :disabled="!canRestoreBackup"
+              @click="openRestoreDialog"
+            >
+              استرجاع النسخة المرفوعة
+            </AppRawButton>
+          </template>
+          <template v-else>
+            <div class="backup-page__import-note">
+              <div>الملف: {{ importedFileName }}</div>
+              <div>نوع النسخة: ZIP كامل مع الملفات</div>
+            </div>
+            <div class="backup-page__restore-note">
+              سيتم قراءة محتوى ZIP على الخادم واسترجاع البيانات والملفات المرفقة داخله.
+            </div>
+            <AppRawButton
+              type="button"
+              class="backup-page__danger-button"
+              :disabled="!canRestoreBackup"
+              @click="openRestoreDialog"
+            >
+              استرجاع النسخة المرفوعة
+            </AppRawButton>
           </template>
         </article>
       </section>
     </v-container>
+
+    <div
+      v-if="restoreDialogOpen"
+      class="backup-confirm"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="backup-confirm__card">
+        <h3 class="backup-confirm__title">
+          تأكيد الاسترجاع
+        </h3>
+        <p class="backup-confirm__text">
+          سيتم استبدال بيانات الداشبورد الحالية بملف النسخة الاحتياطية المرفوع. لا تغلق الصفحة حتى تكتمل العملية.
+        </p>
+        <div class="backup-confirm__actions">
+          <AppRawButton
+            type="button"
+            class="backup-confirm__button backup-confirm__button--secondary"
+            :disabled="isRestoring"
+            @click="closeRestoreDialog"
+          >
+            إلغاء
+          </AppRawButton>
+          <AppRawButton
+            type="button"
+            class="backup-confirm__button backup-confirm__button--danger"
+            :disabled="isRestoring"
+            @click="restoreImportedBackup"
+          >
+            {{ isRestoring ? 'جارٍ الاسترجاع...' : 'استرجاع الآن' }}
+          </AppRawButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapActions, mapState } from 'vuex';
+import { exportDashboardBackup, restoreDashboardBackup, restoreDashboardBackupFile } from '../services/api';
+import { AppRawButton } from '../components/ui';
 
 const buildSummary = (snapshot) => {
   const safe = snapshot || {};
@@ -270,6 +344,9 @@ const buildSummary = (snapshot) => {
 
 export default {
   name: 'AdminBackupView',
+  components: {
+    AppRawButton,
+  },
   props: {
     embedded: {
       type: Boolean,
@@ -283,12 +360,18 @@ export default {
   data() {
     return {
       importedBackup: null,
+      importedBackupFile: null,
       importedFileName: '',
       pageError: '',
+      restoreDialogOpen: false,
+      isRestoring: false,
     };
   },
   computed: {
     ...mapState(['dashboardSnapshot']),
+    canRestoreBackup() {
+      return Boolean(this.importedBackup || this.importedBackupFile) && !this.isRestoring;
+    },
     currentSummary() {
       return buildSummary(this.dashboardSnapshot);
     },
@@ -308,24 +391,34 @@ export default {
     },
   },
   methods: {
+    ...mapActions(['loadDashboardSnapshot']),
     openFilePicker() {
       this.$refs.fileInput?.click();
     },
     clearImportedBackup() {
       this.importedBackup = null;
+      this.importedBackupFile = null;
       this.importedFileName = '';
       this.pageError = '';
+      this.restoreDialogOpen = false;
     },
     downloadCurrentSnapshot() {
-      const blob = new Blob([JSON.stringify(this.dashboardSnapshot || {}, null, 2)], { type: 'application/json;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+      exportDashboardBackup()
+        .then((response) => {
+          const url = window.URL.createObjectURL(response.data);
+          const anchor = document.createElement('a');
+          const fallbackName = `momars-backup-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.zip`;
+          const disposition = response.headers?.['content-disposition'] || '';
+          const fileName = disposition.match(/filename="?([^"]+)"?/i)?.[1] || fallbackName;
 
-      anchor.href = url;
-      anchor.download = `momars-backup-${stamp}.json`;
-      anchor.click();
-      window.URL.revokeObjectURL(url);
+          anchor.href = url;
+          anchor.download = fileName;
+          anchor.click();
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(() => {
+          this.$toast.error('تعذر تحميل النسخة الاحتياطية.');
+        });
     },
     async handleBackupFileSelect(event) {
       const file = event?.target?.files?.[0];
@@ -338,6 +431,13 @@ export default {
       this.pageError = '';
 
       try {
+        if (/\.zip$/i.test(file.name) || file.type === 'application/zip') {
+          this.importedBackup = null;
+          this.importedBackupFile = file;
+          this.importedFileName = file.name;
+          return;
+        }
+
         const text = await file.text();
         const parsed = JSON.parse(text);
 
@@ -346,10 +446,50 @@ export default {
         }
 
         this.importedBackup = parsed;
+        this.importedBackupFile = null;
         this.importedFileName = file.name;
       } catch {
         this.clearImportedBackup();
         this.pageError = 'تعذر قراءة الملف. تأكد أنه ملف JSON صالح صادر من النظام.';
+      }
+    },
+    openRestoreDialog() {
+      if (!this.canRestoreBackup) {
+        return;
+      }
+
+      this.pageError = '';
+      this.restoreDialogOpen = true;
+    },
+    closeRestoreDialog() {
+      if (this.isRestoring) {
+        return;
+      }
+
+      this.restoreDialogOpen = false;
+    },
+    async restoreImportedBackup() {
+      if ((!this.importedBackup && !this.importedBackupFile) || this.isRestoring) {
+        return;
+      }
+
+      this.isRestoring = true;
+      this.pageError = '';
+
+      try {
+        if (this.importedBackupFile) {
+          await restoreDashboardBackupFile(this.importedBackupFile);
+        } else {
+          await restoreDashboardBackup(this.importedBackup);
+        }
+        await this.loadDashboardSnapshot();
+        this.clearImportedBackup();
+        this.$toast.success('تم استرجاع النسخة الاحتياطية بنجاح');
+      } catch (error) {
+        this.pageError = error?.response?.data?.message || 'تعذر استرجاع النسخة الاحتياطية.';
+        this.$toast.error(this.pageError);
+      } finally {
+        this.isRestoring = false;
       }
     },
     diffClass(diff) {
@@ -446,6 +586,12 @@ export default {
 .backup-dialog-card__action--danger {
   border: 0;
   background: #e02424;
+  color: #fff;
+}
+
+.backup-dialog-card__action--restore {
+  border: 0;
+  background: #0f766e;
   color: #fff;
 }
 
@@ -587,6 +733,25 @@ export default {
   cursor: pointer;
 }
 
+.backup-page__danger-button {
+  min-height: 48px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 18px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.backup-page__danger-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .backup-page__file-input {
   display: none;
 }
@@ -687,6 +852,74 @@ export default {
 
 .backup-page__restore-note {
   margin-top: 14px;
+}
+
+.backup-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.backup-confirm__card {
+  width: min(100%, 440px);
+  border-radius: 24px;
+  background: #fff;
+  padding: 26px;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+  direction: rtl;
+  text-align: right;
+}
+
+.backup-confirm__title {
+  margin: 0 0 10px;
+  color: #0f3554;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.backup-confirm__text {
+  margin: 0;
+  color: #52657a;
+  font-size: 0.98rem;
+  line-height: 1.8;
+}
+
+.backup-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.backup-confirm__button {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.backup-confirm__button--secondary {
+  border: 1px solid #cbe1eb;
+  background: #fff;
+  color: #0f3554;
+}
+
+.backup-confirm__button--danger {
+  border: 0;
+  background: #dc2626;
+  color: #fff;
+}
+
+.backup-confirm__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 960px) {

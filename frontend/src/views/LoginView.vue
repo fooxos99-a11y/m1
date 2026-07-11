@@ -8,12 +8,12 @@
           class="login-panel__brand"
         >
           <img
-            src="/شعار-الجمعية.png"
+            :src="$publicAsset('شعار-الجمعية.png')"
             alt="شعار الجمعية"
             class="login-panel__logo"
           >
           <img
-            src="/اللوقو-شفاف.png"
+            :src="$publicAsset('اللوقو-شفاف.png')"
             alt="شعار البرنامج"
             class="login-panel__logo"
           >
@@ -60,16 +60,15 @@
             :append-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
             @click:append="showPassword = !showPassword"
           />
-          <v-btn
-            type="submit"
-            color="primary"
-            large
+          <AppButton
+            native-type="submit"
+            variant="primary"
             block
             class="login-form__submit"
             :loading="authLoading"
           >
             دخول
-          </v-btn>
+          </AppButton>
         </v-form>
       </section>
     </div>
@@ -78,10 +77,14 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
+import { AppButton } from '../components/ui';
 import { resolveUserHomeRoute } from '../utils/authRoutes';
 
 export default {
   name: 'LoginView',
+  components: {
+    AppButton,
+  },
   data() {
     return {
       showPassword: false,

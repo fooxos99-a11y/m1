@@ -13,16 +13,16 @@
             الإعدادات
           </div>
 
-          <button
+          <AppButton
             v-for="item in items"
             :key="item.id"
-            type="button"
+            variant="plain"
             class="settings-admin__nav-item"
             :class="{ 'settings-admin__nav-item--active': selectedItemId === item.id }"
             @click="handleItemClick(item)"
           >
             {{ item.label }}
-          </button>
+          </AppButton>
         </aside>
 
         <section class="settings-admin__content">
@@ -175,6 +175,9 @@ export default {
     },
     toggleRegistration() {
       this.$refs.selectedPanel?.toggleRegistration?.();
+    },
+    openFieldsDialog() {
+      this.$refs.selectedPanel?.openFieldsDialog?.();
     },
     togglePermissionsWorkspaceSection() {
       this.$refs.selectedPanel?.toggleTopbarSection?.();

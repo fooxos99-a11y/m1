@@ -104,20 +104,20 @@
                 </template>
 
                 <div class="assessment-course-card__menu">
-                  <button
+                  <AppRawButton
                     type="button"
                     class="assessment-course-card__menu-item"
                     @click="openCourseEditDialog(course)"
                   >
                     تعديل الاسم
-                  </button>
-                  <button
+                  </AppRawButton>
+                  <AppRawButton
                     type="button"
                     class="assessment-course-card__menu-item"
                     @click="openCourseAssessmentHub(course.id)"
                   >
                     {{ isTasksPage ? 'تعديل المهمة' : 'تعديل الأسئلة' }}
-                  </button>
+                  </AppRawButton>
                 </div>
               </v-menu>
             </div>
@@ -317,7 +317,7 @@
                       v-on="on"
                     >
                       <span class="assessment-select-option__label">{{ item.label }}</span>
-                      <button
+                      <AppRawButton
                         v-if="item.course"
                         type="button"
                         class="assessment-select-option__delete"
@@ -330,7 +330,7 @@
                           class="fa-solid fa-trash-can"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                   </template>
                 </AppSelect>
@@ -460,7 +460,7 @@
                       v-on="on"
                     >
                       <span class="assessment-select-option__label">{{ item.label }}</span>
-                      <button
+                      <AppRawButton
                         v-if="item.course"
                         type="button"
                         class="assessment-select-option__delete"
@@ -473,7 +473,7 @@
                           class="fa-solid fa-trash-can"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                   </template>
                 </AppSelect>
@@ -523,7 +523,7 @@
                 />
               </div>
 
-              <button
+              <AppRawButton
                 type="button"
                 class="attendance-toggle prep-filters__toggle"
                 :class="{
@@ -534,7 +534,7 @@
                 @click="toggleVisibleAttendance"
               >
                 <span class="attendance-toggle__dot" />
-              </button>
+              </AppRawButton>
             </div>
 
             <div
@@ -569,7 +569,7 @@
                       {{ student.loginId || '---' }}
                     </td>
                     <td class="prep-table__status">
-                      <button
+                      <AppRawButton
                         type="button"
                         class="attendance-toggle"
                         :class="{ 'attendance-toggle--active': attendanceChecked.includes(student.id) }"
@@ -577,7 +577,7 @@
                         @click="toggleAttendance(student.id)"
                       >
                         <span class="attendance-toggle__dot" />
-                      </button>
+                      </AppRawButton>
                     </td>
                   </tr>
                 </tbody>
@@ -620,7 +620,7 @@
                       v-on="on"
                     >
                       <span class="assessment-select-option__label">{{ item.label }}</span>
-                      <button
+                      <AppRawButton
                         v-if="item.course"
                         type="button"
                         class="assessment-select-option__delete"
@@ -633,7 +633,7 @@
                           class="fa-solid fa-trash-can"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                   </template>
                 </AppSelect>
@@ -768,7 +768,7 @@
                       v-on="on"
                     >
                       <span class="assessment-select-option__label">{{ item.label }}</span>
-                      <button
+                      <AppRawButton
                         v-if="item.course"
                         type="button"
                         class="assessment-select-option__delete"
@@ -781,7 +781,7 @@
                           class="fa-solid fa-trash-can"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                   </template>
                 </AppSelect>
@@ -853,7 +853,7 @@
                   <div class="assessment-form-card__field-group assessment-form-card__field-group--compact assessment-form-card__field-group--prompt">
                     <div class="assessment-form-card__label-row">
                       <label class="assessment-form-card__label">{{ index + 1 }}.السؤال</label>
-                      <button
+                      <AppRawButton
                         v-if="canEditQuestions"
                         type="button"
                         class="assessment-form-card__trash"
@@ -864,7 +864,7 @@
                           class="fa-solid fa-trash-can app-action-icon app-action-icon--delete"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                     <input
                       :value="questionDrafts[question.id]?.prompt || ''"
@@ -902,7 +902,7 @@
                       class="assessment-options-grid__item"
                       :class="{ 'assessment-options-grid__item--correct': isExistingCorrectOption(question.id, option) }"
                     >
-                      <button
+                      <AppRawButton
                         v-if="option.trim()"
                         type="button"
                         class="assessment-options-grid__check"
@@ -913,7 +913,7 @@
                         <v-icon small>
                           mdi-check
                         </v-icon>
-                      </button>
+                      </AppRawButton>
                       <input
                         :value="option"
                         type="text"
@@ -923,7 +923,7 @@
                         @input="handleExistingOptionChange(question.id, optionIndex, $event.target.value)"
                         @paste="handleExistingOptionPaste(question.id, optionIndex, $event)"
                       >
-                      <button
+                      <AppRawButton
                         v-if="canEditQuestions && optionIndex === (questionDrafts[question.id]?.options || []).length - 1"
                         type="button"
                         class="assessment-options-grid__append"
@@ -934,7 +934,7 @@
                         <v-icon small>
                           mdi-plus
                         </v-icon>
-                      </button>
+                      </AppRawButton>
                     </div>
                   </div>
                 </div>
@@ -965,7 +965,7 @@
                 >
                   <div class="assessment-form-card__topline">
                     <div class="assessment-form-card__meta">
-                      <button
+                      <AppRawButton
                         type="button"
                         class="assessment-form-card__trash"
                         aria-label="حذف السؤال"
@@ -975,7 +975,7 @@
                           class="fa-solid fa-trash-can app-action-icon app-action-icon--delete"
                           aria-hidden="true"
                         />
-                      </button>
+                      </AppRawButton>
                     </div>
                   </div>
 
@@ -1016,7 +1016,7 @@
                         class="assessment-options-grid__item"
                         :class="{ 'assessment-options-grid__item--correct': isCorrectDraftOption(form, option) }"
                       >
-                        <button
+                        <AppRawButton
                           v-if="option.trim()"
                           type="button"
                           class="assessment-options-grid__check"
@@ -1026,7 +1026,7 @@
                           <v-icon small>
                             mdi-check
                           </v-icon>
-                        </button>
+                        </AppRawButton>
                         <input
                           :value="option"
                           type="text"
@@ -1035,7 +1035,7 @@
                           @input="handleOptionChange(formIndex, optionIndex, $event.target.value)"
                           @paste="handleOptionPaste(formIndex, optionIndex, $event)"
                         >
-                        <button
+                        <AppRawButton
                           v-if="optionIndex === form.options.length - 1"
                           type="button"
                           class="assessment-options-grid__append"
@@ -1045,7 +1045,7 @@
                           <v-icon small>
                             mdi-plus
                           </v-icon>
-                        </button>
+                        </AppRawButton>
                       </div>
                     </div>
                   </div>
@@ -1065,7 +1065,7 @@
                   left
                 >
                   <template #activator="{ on, attrs }">
-                    <button
+                    <AppRawButton
                       type="button"
                       class="assessment-inline-builder__add"
                       :aria-label="isTasksPage ? 'إضافة مهمة أدائية' : 'إضافة سؤال'"
@@ -1075,32 +1075,32 @@
                       <v-icon small>
                         mdi-plus
                       </v-icon>
-                    </button>
+                    </AppRawButton>
                   </template>
 
                   <div class="assessment-inline-builder__menu">
-                    <button
+                    <AppRawButton
                       type="button"
                       class="assessment-inline-builder__menu-item"
                       @click="handleAddQuestionSlot('multiple')"
                     >
                       خيارات
-                    </button>
-                    <button
+                    </AppRawButton>
+                    <AppRawButton
                       type="button"
                       class="assessment-inline-builder__menu-item"
                       @click="handleAddQuestionSlot('text')"
                     >
                       نصي
-                    </button>
-                    <button
+                    </AppRawButton>
+                    <AppRawButton
                       v-if="isTasksPage && !selectedQuestions.length && !questionForms.length && !isDocumentMode"
                       type="button"
                       class="assessment-inline-builder__menu-item"
                       @click="handleAddQuestionSlot('document')"
                     >
                       وورد
-                    </button>
+                    </AppRawButton>
                   </div>
                 </v-menu>
 
@@ -1376,10 +1376,11 @@
 import { mapActions, mapState } from 'vuex';
 import {
   AppButton, AppChoiceButton, AppDialog, AppDialogBody, AppDialogFooter,
-  AppDialogHeader, AppIconButton, AppSelect,
+  AppDialogHeader, AppIconButton, AppRawButton, AppSelect,
 } from '../components/ui';
 import RichTextEditor from '../components/RichTextEditor.vue';
 import indicatorAnimation from '../mixins/indicatorAnimation';
+import { parseImportedQuestionsFromText, splitPastedQuestionOptions } from '../utils/questionImportParser';
 
 const assessmentLabels = {
   pre: 'الاختبار القبلي',
@@ -1395,21 +1396,6 @@ const branchLabels = {
 
 const CREATE_COURSE_OPTION = '__create_course__';
 
-const QUESTION_LINE_PATTERN = /[؟?؛:.]\s*$/;
-const NUMBER_TOKEN = '0-9\u0660-\u0669\u06F0-\u06F9';
-const OPTION_LETTER_TOKEN = 'A-Da-d\u0623\u0628\u062C\u062F\u0627';
-const QUESTION_START_PATTERN = new RegExp(`^\\s*[${NUMBER_TOKEN}]{1,3}\\s*[).:؛/-]?\\s+`);
-const QUESTION_END_NUMBER_PATTERN = new RegExp(`\\s*[).:؛/-]?\\s*[${NUMBER_TOKEN}]{1,3}\\s*$`);
-const LEADING_LIST_MARKER_PATTERN = new RegExp(`^\\s*(?:\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[-–—.)(:/؛]\\s*|\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s+|(?:\\([${OPTION_LETTER_TOKEN}]\\)|[${OPTION_LETTER_TOKEN}]\\s*[-–—.)(:/؛])\\s*)`);
-const OPTION_MARKER_PATTERN = new RegExp(`^\\s*(?:[-*•●▪◦]|\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[)(.:؛/-]|\\([${OPTION_LETTER_TOKEN}]\\)|[${OPTION_LETTER_TOKEN}]\\s*[)(.:؛/-])\\s*`);
-const TRAILING_OPTION_MARKER_PATTERN = new RegExp(`\\s*(?:\\([${OPTION_LETTER_TOKEN}]\\)|\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[)(.:؛/-])\\s*$`);
-const OPTION_MARKER_ANYWHERE_PATTERN = new RegExp(`(?:\\([${OPTION_LETTER_TOKEN}]\\)|[${OPTION_LETTER_TOKEN}]\\s*[)(.:؛/-]|\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[)(.:؛/-])`);
-const INLINE_OPTION_SPLIT_PATTERN = new RegExp(`\\s+(?=(?:\\([${OPTION_LETTER_TOKEN}]\\)|[${OPTION_LETTER_TOKEN}]\\s*[)(.:؛/-]|\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[)(.:؛/-]))`, 'g');
-const ANSWER_LINE_PATTERN = /^(?:الإجابة(?:\s+الصحيحة)?|الجواب(?:\s+الصحيح)?|answer|correct\s*answer|solution|الدرجة|التعليل|التفسير)\s*[:：-]/i;
-const INSTRUCTION_LINE_PATTERN = /^(?:التعليمات|إرشادات|ملاحظات|instructions?)\s*[:：-]/i;
-const NOISE_LINE_PATTERN = /^(?:page\s*\d+|\d+\s*\/\s*\d+|\d+)$/i;
-const NUMBERED_MARKER_PATTERN = new RegExp(`^\\s*\\(?[${NUMBER_TOKEN}]{1,3}\\)?\\s*[)(.:؛/-]`);
-
 const emptyQuestionForm = () => ({
   prompt: '',
   type: 'multiple',
@@ -1418,237 +1404,6 @@ const emptyQuestionForm = () => ({
   correctAnswer: '',
   correctAnswerTouched: false,
 });
-
-const normalizeLine = (value) => value
-  .replace(/\u00a0/g, ' ')
-  .replace(/\s+/g, ' ')
-  .replace(/\s+([؟?؛:.,])/g, '$1')
-  .replace(/([.،؛:?؟])\1+/g, '$1')
-  .replace(/^[-–—•●▪◦.،؛:]+\s*/, '')
-  .trim();
-
-const stripLeadingMarker = (value) => normalizeLine(value.replace(LEADING_LIST_MARKER_PATTERN, ''));
-const stripTrailingQuestionNumber = (value) => normalizeLine(value.replace(QUESTION_END_NUMBER_PATTERN, ''));
-const stripOptionMarker = (value) => normalizeLine(value.replace(OPTION_MARKER_PATTERN, '').replace(TRAILING_OPTION_MARKER_PATTERN, ''));
-const isQuestionLine = (value) => QUESTION_LINE_PATTERN.test(normalizeLine(value));
-const isQuestionStartLine = (value) => {
-  const normalized = normalizeLine(value);
-
-  if (!normalized) {
-    return false;
-  }
-
-  return QUESTION_START_PATTERN.test(normalized) || QUESTION_END_NUMBER_PATTERN.test(normalized);
-};
-const isOptionLine = (value) => {
-  const normalized = normalizeLine(value);
-
-  if (!normalized) {
-    return false;
-  }
-
-  return OPTION_MARKER_PATTERN.test(normalized) || TRAILING_OPTION_MARKER_PATTERN.test(normalized);
-};
-const shouldIgnoreLine = (value) => {
-  const normalized = normalizeLine(value);
-
-  return !normalized || NOISE_LINE_PATTERN.test(normalized) || ANSWER_LINE_PATTERN.test(normalized) || INSTRUCTION_LINE_PATTERN.test(normalized);
-};
-const isExplicitQuestionBoundary = (lines, index) => {
-  const line = lines[index];
-
-  if (!isQuestionStartLine(line)) {
-    return false;
-  }
-
-  const normalizedPrompt = stripTrailingQuestionNumber(stripLeadingMarker(line));
-
-  if (isQuestionLine(normalizedPrompt)) {
-    return true;
-  }
-
-  if (!NUMBERED_MARKER_PATTERN.test(normalizeLine(line))) {
-    return false;
-  }
-
-  for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
-    const nextLine = lines[nextIndex];
-
-    if (shouldIgnoreLine(nextLine)) {
-      continue;
-    }
-
-    return isOptionLine(nextLine) && !NUMBERED_MARKER_PATTERN.test(normalizeLine(nextLine));
-  }
-
-  return true;
-};
-
-const splitInlineOptions = (value) => {
-  const normalized = normalizeLine(value);
-  const firstMarkerIndex = normalized.search(OPTION_MARKER_ANYWHERE_PATTERN);
-
-  if (firstMarkerIndex <= 0) {
-    return { prompt: normalized, options: [] };
-  }
-
-  const prompt = normalizeLine(normalized.slice(0, firstMarkerIndex));
-  const inlineOptionsSource = normalizeLine(normalized.slice(firstMarkerIndex));
-
-  if (!prompt || !inlineOptionsSource) {
-    return { prompt: normalized, options: [] };
-  }
-
-  const options = inlineOptionsSource
-    .split(INLINE_OPTION_SPLIT_PATTERN)
-    .map(stripOptionMarker)
-    .filter(Boolean);
-
-  if (options.length < 2) {
-    return { prompt: normalized, options: [] };
-  }
-
-  return { prompt, options };
-};
-
-const parseImportedQuestionsFromText = (text) => {
-  const rawLines = text
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map(normalizeLine);
-
-  const importedQuestions = [];
-  let index = 0;
-
-  while (index < rawLines.length) {
-    const line = rawLines[index];
-
-    if (shouldIgnoreLine(line)) {
-      index += 1;
-      continue;
-    }
-
-    if (!isQuestionStartLine(line) && !isQuestionLine(line)) {
-      index += 1;
-      continue;
-    }
-
-    const questionParts = [stripTrailingQuestionNumber(stripLeadingMarker(line))];
-    let cursor = index + 1;
-
-    if (!isQuestionLine(questionParts[0])) {
-      while (cursor < rawLines.length) {
-        const nextLine = rawLines[cursor];
-
-        if (!nextLine) {
-          cursor += 1;
-          continue;
-        }
-
-        if (isExplicitQuestionBoundary(rawLines, cursor) || isOptionLine(nextLine)) {
-          break;
-        }
-
-        questionParts.push(stripTrailingQuestionNumber(nextLine));
-        cursor += 1;
-
-        if (isQuestionLine(nextLine)) {
-          break;
-        }
-      }
-    }
-
-    const prompt = questionParts.join(' ').trim();
-    const inlineSplit = splitInlineOptions(prompt);
-    const resolvedPrompt = inlineSplit.prompt;
-
-    if (!resolvedPrompt) {
-      index += 1;
-      continue;
-    }
-
-    const markedOptions = [...inlineSplit.options];
-
-    while (cursor < rawLines.length) {
-      const candidate = rawLines[cursor];
-
-      if (!candidate) {
-        cursor += 1;
-        continue;
-      }
-
-      if (shouldIgnoreLine(candidate)) {
-        cursor += 1;
-        continue;
-      }
-
-      if (isExplicitQuestionBoundary(rawLines, cursor)) {
-        break;
-      }
-
-      if (isOptionLine(candidate)) {
-        markedOptions.push(stripOptionMarker(candidate));
-        cursor += 1;
-        continue;
-      }
-
-      if (isQuestionStartLine(candidate) || isQuestionLine(candidate) || markedOptions.length > 0) {
-        break;
-      }
-
-      cursor += 1;
-    }
-
-    if (!isQuestionLine(resolvedPrompt) && markedOptions.length === 0) {
-      index += 1;
-      continue;
-    }
-
-    importedQuestions.push({
-      prompt: resolvedPrompt,
-      type: markedOptions.length >= 2 ? 'multiple' : 'text',
-      options: markedOptions.filter((option, optionIndex, collection) => collection.findIndex((candidate) => candidate === option) === optionIndex),
-    });
-
-    index = cursor;
-  }
-
-  return importedQuestions.filter(
-    (question, questionIndex, collection) => collection.findIndex((candidate) => candidate.prompt === question.prompt) === questionIndex,
-  );
-};
-
-const stripQuestionOptionLabel = (value) => value
-  .trim()
-  .replace(/^(?:[A-Za-z\u0621-\u064A]|\d{1,2})\s*[-–—.):]\s*/, '')
-  .trim();
-
-const splitPastedQuestionOptions = (value) => {
-  const normalizedValue = value.replace(/\r\n?/g, '\n').trim();
-
-  if (!normalizedValue) {
-    return [];
-  }
-
-  const markerPattern = /(^|[\s\n])(?:[A-Za-z\u0621-\u064A]|\d{1,2})\s*[-–—.):]/gm;
-  const markers = [];
-  let match;
-
-  while ((match = markerPattern.exec(normalizedValue)) !== null) {
-    markers.push({ labelStart: match.index + match[1].length });
-  }
-
-  if (markers.length < 2) {
-    return [];
-  }
-
-  return markers
-    .map((marker, markerIndex) => {
-      const nextMarkerStart = markers[markerIndex + 1]?.labelStart ?? normalizedValue.length;
-      return stripQuestionOptionLabel(normalizedValue.slice(marker.labelStart, nextMarkerStart));
-    })
-    .filter(Boolean);
-};
 
 const normalizeAnswer = (value) => String(value || '')
   .trim()
@@ -1668,6 +1423,7 @@ export default {
     AppButton,
     AppChoiceButton,
     AppIconButton,
+    AppRawButton,
     AppSelect,
     AppDialogHeader,
     AppDialogBody,

@@ -79,6 +79,9 @@ export default {
       },
     },
   },
+  mounted() {
+    this.syncState(this.value);
+  },
   methods: {
     syncState(isOpen) {
       const dialog = this.$refs.dialog;

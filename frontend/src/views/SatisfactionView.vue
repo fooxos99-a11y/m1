@@ -23,13 +23,12 @@
             >
               استبيان الرضا
             </v-chip>
-            <v-btn
-              text
-              color="primary"
+            <AppButton
+              variant="plain"
               :to="{ name: 'home' }"
             >
               الرئيسية
-            </v-btn>
+            </AppButton>
           </div>
         </div>
 
@@ -144,16 +143,15 @@
           </article>
 
           <div class="assessment-submit-row">
-            <v-btn
-              color="primary"
-              depressed
+            <AppButton
+              variant="primary"
               class="assessment-submit-button"
               :loading="submitting"
               :disabled="submitting"
               @click="handleSubmit"
             >
               إرسال الاستبيان
-            </v-btn>
+            </AppButton>
           </div>
         </template>
       </v-card>
@@ -163,9 +161,13 @@
 
 <script>
 import { mapActions, mapState } from 'vuex';
+import { AppButton } from '../components/ui';
 
 export default {
   name: 'SatisfactionView',
+  components: {
+    AppButton,
+  },
   data() {
     return {
       answers: {},

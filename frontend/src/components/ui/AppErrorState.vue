@@ -1,9 +1,30 @@
 <template>
-  <section class="app-state app-state--error" role="alert">
-    <v-icon class="app-state__icon" size="38">{{ icon }}</v-icon>
-    <h3 class="app-state__title">{{ title }}</h3>
-    <p v-if="message" class="app-state__description">{{ message }}</p>
-    <AppButton v-if="retryLabel" variant="secondary" @click="$emit('retry')">{{ retryLabel }}</AppButton>
+  <section
+    class="app-state app-state--error"
+    role="alert"
+  >
+    <v-icon
+      class="app-state__icon"
+      size="38"
+    >
+      {{ icon }}
+    </v-icon>
+    <h3 class="app-state__title">
+      {{ title }}
+    </h3>
+    <p
+      v-if="message"
+      class="app-state__description"
+    >
+      {{ message }}
+    </p>
+    <AppButton
+      v-if="retryLabel"
+      variant="secondary"
+      @click="$emit('retry')"
+    >
+      {{ retryLabel }}
+    </AppButton>
   </section>
 </template>
 

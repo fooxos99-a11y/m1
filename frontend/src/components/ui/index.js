@@ -17,6 +17,7 @@ export { default as AppInput } from './AppInput.vue';
 export { default as AppLoadingSpinner } from './AppLoadingSpinner.vue';
 export { default as AppPagination } from './AppPagination.vue';
 export { default as AppProductCard } from './AppProductCard.vue';
+export { default as AppRawButton } from './AppRawButton.vue';
 export { default as AppSidebar } from './AppSidebar.vue';
 export { default as AppSkeleton } from './AppSkeleton.vue';
 export { default as AppTable } from './AppTable.vue';

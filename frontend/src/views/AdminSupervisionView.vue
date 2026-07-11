@@ -159,7 +159,7 @@ export default {
       return [
         { label: 'مشرف معلمين', value: 'male_manager' },
         { label: 'مشرف معلمات', value: 'female_manager' },
-        { label: 'مدير عام', value: 'admin' },
+        { label: 'مدير النمو المهني', value: 'admin' },
       ];
     },
   },
@@ -170,7 +170,7 @@ export default {
     ...mapActions(['fetchDashboardAccounts', 'createDashboardAccount', 'deleteDashboardAccount']),
     roleLabel(role) {
       return {
-        admin: 'مدير عام',
+        admin: 'مدير النمو المهني',
         male_manager: 'مشرف معلمين',
         female_manager: 'مشرف معلمات',
       }[role] || role;

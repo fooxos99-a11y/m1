@@ -1,7 +1,19 @@
 <template>
-  <nav v-if="pageCount > 1" class="app-pagination" aria-label="التنقل بين الصفحات">
-    <button type="button" class="app-pagination__button" :disabled="value <= 1" aria-label="الصفحة السابقة" @click="setPage(value - 1)">
-      <v-icon size="20">mdi-chevron-right</v-icon>
+  <nav
+    v-if="pageCount > 1"
+    class="app-pagination"
+    aria-label="التنقل بين الصفحات"
+  >
+    <button
+      type="button"
+      class="app-pagination__button"
+      :disabled="value <= 1"
+      aria-label="الصفحة السابقة"
+      @click="setPage(value - 1)"
+    >
+      <v-icon size="20">
+        mdi-chevron-right
+      </v-icon>
     </button>
     <button
       v-for="page in visiblePages"
@@ -14,8 +26,16 @@
     >
       {{ page }}
     </button>
-    <button type="button" class="app-pagination__button" :disabled="value >= pageCount" aria-label="الصفحة التالية" @click="setPage(value + 1)">
-      <v-icon size="20">mdi-chevron-left</v-icon>
+    <button
+      type="button"
+      class="app-pagination__button"
+      :disabled="value >= pageCount"
+      aria-label="الصفحة التالية"
+      @click="setPage(value + 1)"
+    >
+      <v-icon size="20">
+        mdi-chevron-left
+      </v-icon>
     </button>
   </nav>
 </template>

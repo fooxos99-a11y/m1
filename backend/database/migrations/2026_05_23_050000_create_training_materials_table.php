@@ -9,9 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('training_materials', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->id();
             $table->string('title');
             $table->text('description')->nullable();
+            $table->string('target_branch_code')->nullable()->index();
             $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
