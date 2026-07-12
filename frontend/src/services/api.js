@@ -23,7 +23,10 @@ const resolveApiBaseUrl = () => {
       return `http://${host}:8001/api`;
     }
 
-    return `${window.location.origin}/api`;
+    const publicBasePath = (process.env.BASE_URL || '/').replace(/\/$/, '');
+    const apiPathPrefix = publicBasePath && publicBasePath !== '/' ? publicBasePath : '';
+
+    return `${window.location.origin}${apiPathPrefix}/api`;
   }
 
   return 'http://localhost:8000/api';

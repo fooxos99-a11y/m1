@@ -100,6 +100,7 @@ const resolveRedirectPath = (route) => {
 };
 
 const trimQueryValue = (value) => (typeof value === 'string' ? value.trim() : '');
+const defaultRouterBase = process.env.NODE_ENV === 'production' ? '/momars/' : '/';
 
 const buildDashboardQuery = (panel, extras = {}) => {
   const query = {};
@@ -121,7 +122,7 @@ const buildDashboardQuery = (panel, extras = {}) => {
 
 const router = new Router({
   mode: 'history',
-  base: process.env.VUE_APP_ROUTER_BASE || '/',
+  base: process.env.VUE_APP_ROUTER_BASE || defaultRouterBase,
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
       return savedPosition;
