@@ -103,6 +103,9 @@
                 <div class="registration-admin__request-meta">
                   الجنس: {{ genderLabel(request.gender) }}
                 </div>
+                <div class="registration-admin__request-meta">
+                  رقم الجوال: {{ request.phone || '--' }}
+                </div>
                 <div
                   v-if="request.branchId"
                   class="registration-admin__request-meta"

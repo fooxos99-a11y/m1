@@ -656,6 +656,7 @@ class CoreDataApiTest extends TestCase
         $submitResponse = $this->postJson('/api/public/registration-requests', [
             'name' => 'طالب تجريبي',
             'loginCode' => '1020304050',
+            'phone' => '0501234567',
             'gender' => 'female',
             'age' => 22,
         ]);
@@ -666,6 +667,7 @@ class CoreDataApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('name', 'طالب تجريبي')
             ->assertJsonPath('loginCode', '1020304050')
+            ->assertJsonPath('phone', '0501234567')
             ->assertJsonPath('gender', 'female')
             ->assertJsonPath('age', 22)
             ->assertJsonPath('branchId', null)
@@ -682,6 +684,7 @@ class CoreDataApiTest extends TestCase
         $this->getJson('/api/dashboard/registration')
             ->assertOk()
             ->assertJsonPath('requests.0.age', 22)
+            ->assertJsonPath('requests.0.phone', '0501234567')
             ->assertJsonPath('requests.0.gender', 'female');
 
         $acceptResponse = $this->postJson('/api/dashboard/registration-requests/'.$requestId.'/accept');
@@ -705,6 +708,56 @@ class CoreDataApiTest extends TestCase
             'login_code' => '1020304050',
             'role' => 'student',
         ]);
+    }
+
+    public function test_public_registration_requires_ten_digit_identity_and_phone_and_numeric_answers(): void
+    {
+        DB::table('registration_settings')->updateOrInsert(
+            ['key' => 'is_open'],
+            ['value' => '1', 'updated_at' => now()],
+        );
+
+        $this->postJson('/api/public/registration-requests', [
+            'name' => 'طالب تجريبي',
+            'loginCode' => '123',
+            'phone' => '050ABC',
+            'gender' => 'male',
+            'answers' => ['age' => 'عشرون'],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['loginCode', 'phone']);
+
+        $this->postJson('/api/public/registration-requests', [
+            'name' => 'طالب تجريبي',
+            'loginCode' => '1020304051',
+            'phone' => '0501234567',
+            'gender' => 'male',
+            'answers' => ['age' => 'عشرون'],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['answers']);
+    }
+
+    public function test_registration_fields_migrate_legacy_phone_to_fixed_phone_and_numeric_age(): void
+    {
+        DB::table('app_settings')->updateOrInsert(
+            ['setting_key' => 'registration_form_fields'],
+            [
+                'value' => json_encode([
+                    ['id' => 'legacy-phone', 'label' => 'رقم الجوال', 'type' => 'text', 'required' => true],
+                    ['id' => 'qualification', 'label' => 'المؤهل', 'type' => 'select', 'required' => true, 'options' => ['ثانوي']],
+                ], JSON_UNESCAPED_UNICODE),
+                'updated_at' => now(),
+            ],
+        );
+
+        $this->getJson('/api/public/registration')
+            ->assertOk()
+            ->assertJsonMissing(['id' => 'legacy-phone'])
+            ->assertJsonPath('fields.0.id', 'age')
+            ->assertJsonPath('fields.0.label', 'العمر')
+            ->assertJsonPath('fields.0.type', 'number')
+            ->assertJsonPath('fields.1.id', 'qualification');
     }
 
     public function test_dashboard_snapshot_and_transfer_student_work(): void

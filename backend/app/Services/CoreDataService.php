@@ -738,7 +738,7 @@ class CoreDataService
         }
     }
 
-    public function createRegistrationRequest(string $name, string $loginCode, int $age, string $gender, array $answers = []): array
+    public function createRegistrationRequest(string $name, string $loginCode, string $phone, string $gender, array $answers = [], ?int $legacyAge = null): array
     {
         if (! $this->isRegistrationOpen()) {
             throw ValidationException::withMessages(['registration' => 'التسجيل مغلق حاليًا.']);
@@ -746,17 +746,22 @@ class CoreDataService
 
         $name = trim($name);
         $loginCode = trim($loginCode);
+        $phone = trim($phone);
 
-        if ($name === '' || $loginCode === '') {
-            throw ValidationException::withMessages(['loginCode' => 'أدخل الاسم ورقم الهوية والعمر.']);
+        if ($name === '' || ! preg_match('/^\d{10}$/', $loginCode)) {
+            throw ValidationException::withMessages(['loginCode' => 'رقم الهوية يجب أن يتكون من 10 أرقام.']);
         }
 
-        if ($age < 1 || $age > 120) {
-            throw ValidationException::withMessages(['age' => 'أدخل عمرًا صحيحًا.']);
+        if (! preg_match('/^\d{10}$/', $phone)) {
+            throw ValidationException::withMessages(['phone' => 'رقم الجوال يجب أن يتكون من 10 أرقام.']);
         }
 
         if (! in_array($gender, ['male', 'female'], true)) {
             throw ValidationException::withMessages(['gender' => 'اختر الجنس.']);
+        }
+
+        if ($legacyAge !== null && ! array_key_exists('age', $answers)) {
+            $answers['age'] = (string) $legacyAge;
         }
 
         $answers = $this->normalizeRegistrationAnswers($answers);
@@ -771,7 +776,7 @@ class CoreDataService
             'status' => 'pending',
         ]);
 
-        $this->storeRegistrationRequestMetadata($request->id, $age, $gender, $answers);
+        $this->storeRegistrationRequestMetadata($request->id, $phone, $gender, $answers, $legacyAge);
 
         return $this->serializeRegistrationRequest($request);
     }
@@ -994,6 +999,7 @@ class CoreDataService
             'id' => $request->id,
             'name' => $request->full_name,
             'loginCode' => $request->login_code,
+            'phone' => $request->status === 'pending' ? $this->registrationRequestPhone($request->id) : null,
             'age' => $request->status === 'pending' ? $this->registrationRequestAge($request->id) : null,
             'gender' => $request->status === 'pending' ? $this->registrationRequestGender($request->id) : null,
             'answers' => $this->registrationRequestAnswers($request->id),
@@ -1022,6 +1028,14 @@ class CoreDataService
         return in_array($gender, ['male', 'female'], true) ? $gender : null;
     }
 
+    private function registrationRequestPhone(string $requestId): ?string
+    {
+        $metadata = $this->loadRegistrationRequestMetadata();
+        $phone = (string) ($metadata[$requestId]['phone'] ?? '');
+
+        return preg_match('/^\d{10}$/', $phone) ? $phone : null;
+    }
+
     private function registrationRequestBranchCode(string $requestId): string
     {
         return $this->registrationRequestGender($requestId) === 'female' ? 'female' : 'male';
@@ -1043,11 +1057,12 @@ class CoreDataService
         $this->writeRegistrationRequestMetadata($metadata);
     }
 
-    private function storeRegistrationRequestMetadata(string $requestId, int $age, string $gender, array $answers): void
+    private function storeRegistrationRequestMetadata(string $requestId, string $phone, string $gender, array $answers, ?int $legacyAge = null): void
     {
         $metadata = $this->loadRegistrationRequestMetadata();
         $metadata[$requestId] = [
-            'age' => $age,
+            'age' => $legacyAge,
+            'phone' => $phone,
             'gender' => $gender,
             'answers' => $answers,
         ];
@@ -1057,14 +1072,24 @@ class CoreDataService
 
     private function defaultRegistrationFormFields(): array
     {
-        return [];
+        return [[
+            'id' => 'age',
+            'label' => 'العمر',
+            'type' => 'number',
+            'required' => true,
+            'options' => [],
+        ]];
     }
 
     private function normalizeRegistrationFormFields(array $fields): array
     {
-        return collect($fields)
+        $hasLegacyPhoneField = collect($fields)->contains(
+            fn ($field): bool => trim((string) ($field['label'] ?? '')) === 'رقم الجوال',
+        );
+
+        $normalized = collect($fields)
             ->map(function ($field): array {
-                $type = in_array(($field['type'] ?? 'text'), ['text', 'select'], true) ? $field['type'] : 'text';
+                $type = in_array(($field['type'] ?? 'text'), ['text', 'number', 'select'], true) ? $field['type'] : 'text';
                 $options = collect($field['options'] ?? [])
                     ->map(fn ($option) => trim((string) $option))
                     ->filter()
@@ -1083,9 +1108,15 @@ class CoreDataService
                     'options' => $type === 'select' ? $options : [],
                 ];
             })
-            ->filter(fn (array $field): bool => $field['label'] !== '')
+            ->filter(fn (array $field): bool => $field['label'] !== '' && $field['label'] !== 'رقم الجوال')
             ->values()
             ->all();
+
+        if ($hasLegacyPhoneField && ! collect($normalized)->contains('id', 'age')) {
+            array_unshift($normalized, $this->defaultRegistrationFormFields()[0]);
+        }
+
+        return $normalized;
     }
 
     private function normalizeRegistrationAnswers(array $answers): array
@@ -1104,6 +1135,11 @@ class CoreDataService
 
             if ($value !== '' && $field['type'] === 'select' && ! in_array($value, $field['options'], true)) {
                 $errors['answers'] = 'اختر قيمة صحيحة من القائمة.';
+                break;
+            }
+
+            if ($value !== '' && $field['type'] === 'number' && ! preg_match('/^\d+$/', $value)) {
+                $errors['answers'] = 'أدخل رقمًا صحيحًا في الحقول الرقمية.';
                 break;
             }
 

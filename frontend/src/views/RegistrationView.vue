@@ -66,11 +66,16 @@
                 <label class="registration-entry__label">رقم الهوية</label>
                 <AppTextField
                   v-model.trim="form.loginCode"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="10"
+                  pattern="[0-9]*"
                   dense
                   outlined
                   hide-details
                   class="registration-entry__input"
                   placeholder="رقم الهوية"
+                  @input="form.loginCode = digitsOnly($event, 10)"
                 />
               </div>
 
@@ -90,17 +95,19 @@
               </div>
 
               <div class="registration-entry__field">
-                <label class="registration-entry__label">العمر</label>
+                <label class="registration-entry__label">رقم الجوال</label>
                 <AppTextField
-                  v-model.number="form.age"
-                  type="number"
-                  min="1"
-                  max="120"
+                  v-model.trim="form.phone"
+                  type="tel"
+                  inputmode="numeric"
+                  maxlength="10"
+                  pattern="[0-9]*"
                   dense
                   outlined
                   hide-details
                   class="registration-entry__input"
-                  placeholder="العمر"
+                  placeholder="رقم الجوال"
+                  @input="form.phone = digitsOnly($event, 10)"
                 />
               </div>
 
@@ -111,13 +118,17 @@
               >
                 <label class="registration-entry__label">{{ field.label }}</label>
                 <AppTextField
-                  v-if="field.type === 'text'"
+                  v-if="field.type !== 'select'"
                   v-model.trim="form.answers[field.id]"
+                  type="text"
+                  :inputmode="field.type === 'number' ? 'numeric' : undefined"
+                  :pattern="field.type === 'number' ? '[0-9]*' : undefined"
                   dense
                   outlined
                   hide-details
                   class="registration-entry__input"
                   :placeholder="field.label"
+                  @input="field.type === 'number' && setNumericAnswer(field.id, $event)"
                 />
                 <AppSelect
                   v-else
@@ -174,7 +185,7 @@ export default {
         name: '',
         loginCode: '',
         gender: '',
-        age: null,
+        phone: '',
         answers: {},
       },
     };
@@ -198,8 +209,8 @@ export default {
       }
     },
     async submitRegistration() {
-      if (!this.form.name || !this.form.loginCode || !this.form.gender || !this.form.age || this.hasMissingRequiredAnswers()) {
-        this.$toast.error('أكمل الاسم ورقم الهوية والجنس والعمر أولًا');
+      if (!this.form.name || !/^\d{10}$/.test(this.form.loginCode) || !this.form.gender || !/^\d{10}$/.test(this.form.phone) || this.hasMissingRequiredAnswers()) {
+        this.$toast.error('أكمل البيانات المطلوبة، وتأكد أن رقم الهوية ورقم الجوال يتكونان من 10 أرقام');
         return;
       }
 
@@ -213,11 +224,12 @@ export default {
           name: '',
           loginCode: '',
           gender: '',
-          age: null,
+          phone: '',
           answers: this.createEmptyAnswers(),
         };
       } catch (error) {
         const message = error?.response?.data?.errors?.loginCode?.[0]
+          || error?.response?.data?.errors?.phone?.[0]
           || error?.response?.data?.errors?.age?.[0]
           || error?.response?.data?.errors?.answers?.[0]
           || error?.response?.data?.errors?.registration?.[0]
@@ -236,6 +248,13 @@ export default {
     },
     hasMissingRequiredAnswers() {
       return this.registrationFields.some((field) => field.required && !String(this.form.answers[field.id] || '').trim());
+    },
+    digitsOnly(value, maxLength = null) {
+      const digits = String(value || '').replace(/\D/g, '');
+      return maxLength ? digits.slice(0, maxLength) : digits;
+    },
+    setNumericAnswer(fieldId, value) {
+      this.$set(this.form.answers, fieldId, this.digitsOnly(value));
     },
   },
 };

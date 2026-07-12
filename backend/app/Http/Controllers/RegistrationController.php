@@ -21,8 +21,9 @@ class RegistrationController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'loginCode' => ['required', 'string', 'max:255'],
-            'age' => ['required', 'integer', 'min:1', 'max:120'],
+            'loginCode' => ['required', 'digits:10'],
+            'phone' => ['required', 'digits:10'],
+            'age' => ['nullable', 'integer', 'min:1', 'max:120'],
             'gender' => ['required', 'in:male,female'],
             'answers' => ['nullable', 'array'],
             'answers.*' => ['nullable', 'string', 'max:2000'],
@@ -32,9 +33,10 @@ class RegistrationController extends Controller
             $this->coreDataService->createRegistrationRequest(
                 $data['name'],
                 $data['loginCode'],
-                (int) $data['age'],
+                $data['phone'],
                 $data['gender'],
                 $data['answers'] ?? [],
+                isset($data['age']) ? (int) $data['age'] : null,
             ),
             201,
         );
@@ -62,7 +64,7 @@ class RegistrationController extends Controller
             'fields' => ['present', 'array'],
             'fields.*.id' => ['nullable', 'string', 'max:100'],
             'fields.*.label' => ['required', 'string', 'max:255'],
-            'fields.*.type' => ['required', 'in:text,select'],
+            'fields.*.type' => ['required', 'in:text,number,select'],
             'fields.*.required' => ['nullable', 'boolean'],
             'fields.*.options' => ['nullable', 'array'],
             'fields.*.options.*' => ['nullable', 'string', 'max:255'],

@@ -10,18 +10,43 @@
 
       <AppDialogBody class="registration-fields-dialog__body">
         <div
-          class="registration-fields-dialog__fixed-fields"
+          class="registration-fields-dialog__fields-stack"
           aria-label="حقول التسجيل الأساسية"
         >
-          <AppButton
+          <div
             v-for="field in fixedFields"
-            :key="field"
-            variant="plain"
-            class="registration-fields-dialog__fixed-field"
-            disabled
+            :key="field.id"
+            class="registration-fields-dialog__field-editor registration-fields-dialog__field-editor--fixed"
           >
-            {{ field }}
-          </AppButton>
+            <div class="registration-fields-dialog__field-grid">
+              <label class="registration-fields-dialog__accept-field">
+                <span class="registration-fields-dialog__accept-label">السؤال</span>
+                <AppTextField
+                  :value="field.label"
+                  class="registration-fields-dialog__input"
+                  dense
+                  outlined
+                  hide-details
+                  disabled
+                />
+              </label>
+
+              <label class="registration-fields-dialog__accept-field">
+                <span class="registration-fields-dialog__accept-label">النوع</span>
+                <AppSelect
+                  :value="field.type"
+                  :items="fieldTypeOptions"
+                  item-text="label"
+                  item-value="value"
+                  class="registration-fields-dialog__input"
+                  dense
+                  outlined
+                  hide-details
+                  disabled
+                />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="registration-fields-dialog__fields-stack">
@@ -157,9 +182,15 @@ export default {
   data() {
     return {
       formFields: [],
-      fixedFields: ['الاسم', 'رقم الهوية', 'الجنس', 'العمر'],
+      fixedFields: [
+        { id: 'name', label: 'الاسم', type: 'text' },
+        { id: 'loginCode', label: 'رقم الهوية', type: 'number' },
+        { id: 'gender', label: 'الجنس', type: 'select' },
+        { id: 'phone', label: 'رقم الجوال', type: 'number' },
+      ],
       fieldTypeOptions: [
         { label: 'نصي', value: 'text' },
+        { label: 'رقم', value: 'number' },
         { label: 'قائمة منسدلة', value: 'select' },
       ],
     };
@@ -195,7 +226,7 @@ export default {
       return {
         id: field.id || `field-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         label: field.label || '',
-        type: field.type === 'select' ? 'select' : 'text',
+        type: ['number', 'select'].includes(field.type) ? field.type : 'text',
         required: field.required !== false,
         optionsText: options.join('\n'),
       };
@@ -211,7 +242,7 @@ export default {
         .map((field) => ({
           id: field.id,
           label: String(field.label || '').trim(),
-          type: field.type === 'select' ? 'select' : 'text',
+          type: ['number', 'select'].includes(field.type) ? field.type : 'text',
           required: Boolean(field.required),
           options: String(field.optionsText || '')
             .split(/\r?\n/)
@@ -253,27 +284,6 @@ export default {
   gap: 12px;
 }
 
-.registration-fields-dialog__fixed-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.registration-fields-dialog__fixed-field {
-  min-height: 46px;
-  padding: 9px 12px;
-  border: 1px solid rgba(143, 191, 211, 0.58);
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.86);
-  color: #123f56;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-align: right;
-  cursor: not-allowed;
-  opacity: 1;
-}
-
 .registration-fields-dialog__field-editor {
   display: grid;
   gap: 12px;
@@ -281,6 +291,10 @@ export default {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 14px;
   background: rgba(248, 250, 252, 0.62);
+}
+
+.registration-fields-dialog__field-editor--fixed {
+  background: rgba(241, 245, 249, 0.78);
 }
 
 .registration-fields-dialog__field-grid {
@@ -345,7 +359,6 @@ export default {
 }
 
 @media (max-width: 960px) {
-  .registration-fields-dialog__fixed-fields,
   .registration-fields-dialog__field-grid {
     grid-template-columns: 1fr;
   }
